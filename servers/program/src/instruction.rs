@@ -1,8 +1,8 @@
 // //! Instruction types
 
-// use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
-// use num_derive::ToPrimitive;
-// use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey};
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
+use num_derive::ToPrimitive;
+use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey};
 
 // #[repr(C)]
 // #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
@@ -10,39 +10,21 @@
 //     pub weight: u64,
 // }
 
-// /// Instructions
-// #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, ToPrimitive)]
-// pub enum Instruction {
-//     /// Initializes asset input
-//     ///
-//     /// Inputs:
-//     ///  InitializeAssetInput
-//     ///  
-//     /// Accounts:
-//     ///   - read      rent               Sysvar rent to check rent exempt balance on asset and token
-//     ///   - read      pool               Pool this asset will belong to
-//     ///   - writable  asset              New asset account to initialize
-//     ///   - writable  token              Token account to store assets, owner should be asset authority    
-//     InitializeAsset,
-
-//     /// Initializes pool of assets
-//     ///
-//     /// Inputs:
-//     ///  InitializeAssetInput
-//     ///  
-//     /// Accounts:
-//     ///   - read       rent               Rent sysvar to check pool and pool_mint accounts balance
-//     ///   - read       program_token      Token program used to initialize the pool_mint
-//     ///   - writable   pool               New pool to initialize    
-//     ///   - writable   pool_mint          New pool mint to initialize  
-//     ///   - writable   [asset]            Accounts of initialized assets with the same pool address    
-//     InitializePool,
-
-//     Deposit,
-//     Withdraw,
-//     Swap,
-//     UpdateWeight,
-// }
+/// Instructions
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, ToPrimitive)]
+pub enum Instruction {
+    /// Joins dweller to server.
+    ///
+    /// Inputs:
+    ///  InitializeAssetInput
+    ///  
+    /// Accounts:
+    ///   - writeable  dweller
+    ///   - writeable  dweller_server
+    ///   - writeable  server_member
+    ///   - writable   server 
+    JoinServer,
+}
 
 // /// Create `InitializeAsset` instruction
 // #[allow(clippy::too_many_arguments)]

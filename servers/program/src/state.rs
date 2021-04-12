@@ -1,93 +1,103 @@
-// //! Instruction types
+///! Registry types. Registry it self is off chain API.
+/// So there should be Registry authorities which can do some operation on Dwellers stuff
 
-// use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
-// use num_derive::{FromPrimitive, ToPrimitive};
-// use solana_program::pubkey::Pubkey;
+use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
+use num_derive::{FromPrimitive, ToPrimitive};
+use solana_program::pubkey::Pubkey;
 
-// #[repr(C)]
-// #[derive(
-//     BorshSerialize,
-//     BorshDeserialize,
-//     PartialEq,
-//     Debug,
-//     Clone,
-//     BorshSchema,
-//     ToPrimitive,
-//     FromPrimitive,
-// )]
-// pub enum PoolVersion {
-//     Uninitialized,
-//     InitializedV1,
-// }
+#[repr(C)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    PartialEq,
+    Debug,
+    Clone,
+    BorshSchema,
+    ToPrimitive,
+    FromPrimitive,
+)]
+pub enum StateVersion {
+    Uninitialized,
+    V1,
+}
 
-// #[repr(C)]
-// #[derive(
-//     BorshSerialize,
-//     BorshDeserialize,
-//     PartialEq,
-//     Debug,
-//     Clone,
-//     BorshSchema,
-//     ToPrimitive,
-//     FromPrimitive,
-// )]
-// pub enum AssetVersion {
-//     Uninitialized,
-//     InitializedV1,
-// }
+/// address of signer + separate program deployed
+/// https://github.com/Satellite-im/Satellite-Contracts/blob/main/contracts/DwellerID.sol
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct Dweller {
+    pub version: StateVersion,
+    
+    /// used to derive DwellerServer
+    pub server_index_seed: u8,
 
-// #[repr(C)]
-// #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
-// pub struct PoolState {
-//     pub version: PoolVersion,
-//     /// Mint issuing pool tokens
-//     pub pool_mint: Pubkey,
-//     /// ISSUE: may be we should do some alphanumeric sorting of seeds?
-//     /// Pubkey generated using program address derivation with all asset accounts as seed.
-//     pub assets_hash: Pubkey,
-//     /// Sum of all asset weights
-//     pub weight_total: u64,
-//     // fee_account	TBD
-//     // fees	TBD
-//     // authority_fee	Pubkey
-//     // authority_merge	Pubkey
-//     // authority_weights	Pubkey
-// }
+    /// This is the display name of a dweller
+    pub name: [u8;32],
+    
+    /// Photo identification of the dweller
+    /// Multihash referencing IPFS hash of dwellers photo
+    pub photo_hash: Option<[u8;64]>,    
+}
 
-// impl PoolState {
-//     pub fn len() -> usize {
-//         73
-//         //solana_program::borsh::get_packed_len::<Self>()
-//     }
-// }
 
-// #[repr(C)]
-// #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
-// pub struct AssetState {
-//     pub version: AssetVersion,
-//     /// Reference to the pool
-//     pub pool: Pubkey,
-//     /// Account storing tokens
-//     pub token: Pubkey,
-//     /// This asset weight
-//     pub weight: u64,
-//     // weight_valid_until	u64	Cutoff timestamp of weight validity
-// }
+/// Mapping of `Dweller` to `Server`.
+/// Account address is be derived from `Dweller`
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct DwellerServer {
+    pub version: StateVersion,
+    
+    pub dweller: Pubkey,
+    
+    pub server: Pubkey,
+}
 
-// impl AssetState {
-//     pub fn len() -> usize {
-//         73
-//         // cannot use next as it violates access in BPF
-//         //solana_program::borsh::get_packed_len::<Self>()
-//     }
-// }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     #[test]
-//     pub fn len() {
-//         assert_eq!(AssetState::len(), 73);
-//         assert_eq!(PoolState::len(), 73);
-//     }
-// }
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerMemberStatus {
+    pub version: StateVersion,
+    pub dweller: Pubkey,
+    // here could be some u8 for status before String 
+    pub status : String,
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct Server {
+    pub version: StateVersion,
+}
+
+
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerChannel {
+    pub version: StateVersion,
+}		
+		
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerGroup {
+    pub version: StateVersion,
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerGroupChannel {
+    pub version: StateVersion,
+}
+
+/// many to many map of `DwellerID` to `Server` (inverse of `DwellerServer`)
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerMember {
+    pub version: StateVersion,
+}
+
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct ServerAdministrator {
+    pub version: StateVersion,
+}
