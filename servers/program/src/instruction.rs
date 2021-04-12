@@ -19,11 +19,27 @@ pub enum Instruction {
     ///  InitializeAssetInput
     ///  
     /// Accounts:
-    ///   - writeable  dweller
-    ///   - writeable  dweller_server
-    ///   - writeable  server_member
-    ///   - writable   server 
+    ///   how registry will approve dweller to join?
+    ///   - writeable         dweller
+    ///   - writeable         dweller_server
+    ///   - writeable         server_member
+    ///   - writeable          server 
     JoinServer,
+
+    /// Accounts: 
+    ///   - signer registry_or_owner
+    LeaveServer,
+
+    /// Change dweller's display name
+    SetDwellerName,
+
+    /// Change dweller's display photo. Consider using PNG or JPEG photos for usability.
+    SetPhoto,
+
+    /// Update the users status
+    /// Accounts:
+    /// - signer  owner Dweller who ows account 
+    SetStatus,
 }
 
 // /// Create `InitializeAsset` instruction
