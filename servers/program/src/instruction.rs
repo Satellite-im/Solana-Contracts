@@ -8,6 +8,7 @@ use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubk
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
     
+    /// [initialize_dweller]
     /// accounts
     /// - signer, write dweller
     ///
@@ -172,55 +173,28 @@ pub struct InitializeServerInput {
 }
 
 
-// /// Create `InitializeAsset` instruction
-// #[allow(clippy::too_many_arguments)]
-// pub fn initialize_asset(
-//     rent: &Pubkey,
-//     pool: &Pubkey,
-//     asset: &Pubkey,
-//     token: &Pubkey,
-//     input: InitializeAssetInput,
-// ) -> Result<solana_program::instruction::Instruction, ProgramError> {
-//     let mut data = Instruction::InitializeAsset.try_to_vec()?;
-//     let mut input = input.try_to_vec()?;
-//     data.append(&mut input);
-//     let accounts = vec![
-//         AccountMeta::new_readonly(*rent, false),
-//         AccountMeta::new_readonly(*pool, false), // makes sure prepare in same transaction
-//         AccountMeta::new(*asset, false),
-//         AccountMeta::new(*token, false),
-//     ];
-//     Ok(solana_program::instruction::Instruction {
-//         program_id: crate::id(),
-//         accounts,
-//         data,
-//     })
-// }
+    /// [initialize_dweller]
+    /// accounts
+    /// - signer, write dweller
+    ///
+    /// Input: [InitializeDwellerInput]
+    
 
-// /// Create `InitializePool` instruction
-// #[allow(clippy::too_many_arguments)]
-// pub fn initialize_pool(
-//     rent: &Pubkey,
-//     program_token: &Pubkey,
-//     pool: &Pubkey,
-//     pool_mint: &Pubkey,
-//     assets: &[Pubkey],
-// ) -> Result<solana_program::instruction::Instruction, ProgramError> {
-//     let data = Instruction::InitializePool.try_to_vec()?;
-//     let mut accounts = vec![
-//         AccountMeta::new_readonly(*rent, false),
-//         AccountMeta::new_readonly(*program_token, false), // makes sure prepare in same transaction
-//         AccountMeta::new_readonly(*pool, false),          // makes sure prepare in same transaction
-//         AccountMeta::new(*pool_mint, false),
-//     ];
-
-//     for asset in assets {
-//         accounts.push(AccountMeta::new(*asset, false));
-//     }
-
-//     Ok(solana_program::instruction::Instruction {
-//         program_id: crate::id(),
-//         accounts,
-//         data,
-//     })
-// }
+/// [Instruction::InitializeDweller]
+#[allow(clippy::too_many_arguments)]
+pub fn initialize_dweller(
+    dweller: &Pubkey,
+    input: InitializeDwellerInput,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let mut data = Instruction::InitializeDweller.try_to_vec()?;
+    let mut input = input.try_to_vec()?;
+    data.append(&mut input);
+    let accounts = vec![
+        AccountMeta::new(*dweller, true),
+    ];
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
