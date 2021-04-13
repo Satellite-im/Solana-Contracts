@@ -57,6 +57,7 @@ pub struct DwellerServer {
 /// Server members whom have joined
 /// Has program derived address from Server
 /// many to many map of `DwellerID` to `Server` (inverse of `DwellerServer`)
+/// Payed by dweller.
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerMember {
@@ -65,7 +66,7 @@ pub struct ServerMember {
     pub dweller: Pubkey,
 }
 
-/// Dwellers who were invited
+/// Dwellers who were invited. Payed by admin or registry pool(server)?
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]		
 pub struct ServerMemberStatus {
@@ -118,6 +119,7 @@ pub struct ServerChannel {
     pub version: StateVersion,
     pub server:Pubkey,
     pub type_id : u8,
+    pub name: [u8;32],
 }		
 		
 #[repr(C)]
@@ -125,6 +127,7 @@ pub struct ServerChannel {
 pub struct ServerGroup {
     pub version: StateVersion,
     pub server:Pubkey,
+    pub name: [u8;32],
 }
 
 #[repr(C)]
@@ -132,4 +135,6 @@ pub struct ServerGroup {
 pub struct ServerGroupChannel {
     pub version: StateVersion,
     pub server:Pubkey,
+    pub group: Pubkey,
+    pub channel: Pubkey,
 }

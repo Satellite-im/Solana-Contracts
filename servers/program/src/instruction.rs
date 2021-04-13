@@ -40,6 +40,29 @@ pub enum Instruction {
     /// Accounts:
     /// - signer  owner Dweller who ows account 
     SetStatus,
+
+    // - signer  admin
+    // - write   channel
+    // input:
+    // - type_id u8
+    // - name  [u8; 32] 
+    AddChannel,
+
+    // - signer  admin
+    // - write   server
+    // - write   channel
+    // - write   what about channel group mapping account? reuse place holder with SOL? require more sol?
+    DeleteChannel,
+
+    // signer admin
+    // write group
+    // write [] group_channels
+    // input:
+    // name [u8;32]
+    // 
+    CreateGroup,
+
+    AddChannelToGroup,
 }
 
 // /// Create `InitializeAsset` instruction
