@@ -4,36 +4,33 @@ use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_derive::ToPrimitive;
 use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey};
 
-// #[repr(C)]
-// #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
-// pub struct InitializeAssetInput {
-//     pub weight: u64,
-// }
-
 /// Instructions
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
-    /// Joins dweller to server.
+    
+    /// accounts
+    /// - signer, write dweller
     ///
-    /// Inputs:
-    ///  InitializeAssetInput
-    ///  
-    /// Accounts:
-    ///   how registry will approve dweller to join?
-    ///   - writeable         dweller
-    ///   - writeable         dweller_server
-    ///   - writeable         server_member
-    ///   - writeable         server 
-    JoinServer,
+    /// Input: [InitializeDwellerInput]
+    InitializeDweller,
 
-    /// Accounts: 
-    ///   - signer registry_or_owner
-    LeaveServer,
+    /// accounts
+    /// - signer, write     owner     must be dweller
+    /// - signer, write     server
+    ///
+    /// Input: [InitializeServerInput]
+    InitializeServer,
 
     /// Change dweller's display name
+    /// Accounts:
+    /// - write   dweller
+    /// Input: [SetNameInput]
     SetDwellerName,
 
     /// Change dweller's display photo. Consider using PNG or JPEG photos for usability.
+    /// Accounts:
+    /// - signer, write   dweller
+    /// Input: [SetHashInput]
     SetDwellerPhoto,
 
     /// Update the users status
@@ -100,12 +97,46 @@ pub enum Instruction {
     /// - write     admin
     /// - write     admin_last
     RemoveAdmin,
+    
+    ///   - writeable         server     
+    ///   - writeable         dweller
+    ///   - writeable         dweller_server
+    ///   - writeable         member
+    JoinServer,
 
-    /// Accounts:
+    /// accounts:
+    /// 
+    /// - write    server
+    /// - write    member
+    /// - write    member_last
+    /// - write    dweller_server
+    /// - write    dweller_server_last
+    LeaveServer,
+
+    /// accounts:
     /// - write     server
-    /// - read      member_status
-    /// - read      member
-    Join,
+    /// - write     member_status
+    InviteToServer, 
+
+    /// accounts:
+    /// - write     server
+    /// - write     member_status
+    /// - write     member_status_last
+    RevokeInviteServer, 
+
+    /// accounts:
+    /// - signer admin
+    /// - write  server
+    /// 
+    /// Input: [SetNameInput]
+    SetServerName,
+
+    /// accounts:
+    /// - signer admin
+    /// - write  server
+    /// 
+    /// Input: [SetHashInput]        
+    SetServerDb,
 }
 
 #[repr(C)]
@@ -114,6 +145,31 @@ pub struct CreateGroupInput {
     pub name: [u8;32],
 }
 
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct SetNameInput {
+    pub name: [u8;32],
+}
+
+
+/// IPFS hash
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct SetHashInput {
+    pub hash: [u8;64],
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct InitializeDwellerInput {
+    pub name: [u8;32],
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct InitializeServerInput {
+    pub name: [u8;32],
+}
 
 
 // /// Create `InitializeAsset` instruction
