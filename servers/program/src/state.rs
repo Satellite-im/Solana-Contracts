@@ -54,8 +54,8 @@ pub struct DwellerServer {
 }
 
 
-/// Has program derived address from Server
 /// Server members whom have joined
+/// Has program derived address from Server
 /// many to many map of `DwellerID` to `Server` (inverse of `DwellerServer`)
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
@@ -65,6 +65,7 @@ pub struct ServerMember {
     pub dweller: Pubkey,
 }
 
+/// Dwellers who were invited
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]		
 pub struct ServerMemberStatus {
@@ -99,32 +100,36 @@ pub struct Server {
     pub photo_hash: Option<[u8;64]>,    
 
     /// additional access hash
-    pub db_hash: Option<[u8;64]>,
+    pub db_hash: Option<[u8;64]>, 
 
     // we store roles as separate account types, not as enum flag in member state as in original Solidity contract
-
+    // could store index free slots as bit vector of know size, growable size or as (b-?)tree of account
     /// Server members whom have joined, index used to derive addresses
     pub members: u16,
+    pub administrators:u8,  
+    pub channels: u8,
+    pub groups:u8,
 
-    pub administrators:u8,
 }
-
-
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerChannel {
     pub version: StateVersion,
+    pub server:Pubkey,
+    pub type_id : u8,
 }		
 		
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroup {
     pub version: StateVersion,
+    pub server:Pubkey,
 }
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroupChannel {
     pub version: StateVersion,
+    pub server:Pubkey,
 }
