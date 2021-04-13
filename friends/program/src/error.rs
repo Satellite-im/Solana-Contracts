@@ -9,31 +9,31 @@ use solana_program::{
 };
 use thiserror::Error;
 
-/// Errors that may be returned by the Template program.
+/// Errors that may be returned by the Friends program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum ProgramTemplateError {
-    /// Example error
-    #[error("Example error")]
-    ExampleError,
+pub enum FriendsProgramError {
+    /// Calculation error
+    #[error("Calculation error")]
+    CalculationError,
 }
-impl From<ProgramTemplateError> for ProgramError {
-    fn from(e: ProgramTemplateError) -> Self {
+impl From<FriendsProgramError> for ProgramError {
+    fn from(e: FriendsProgramError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
-impl<T> DecodeError<T> for ProgramTemplateError {
+impl<T> DecodeError<T> for FriendsProgramError {
     fn type_of() -> &'static str {
-        "ProgramTemplateError"
+        "FriendsProgramError"
     }
 }
 
-impl PrintProgramError for ProgramTemplateError {
+impl PrintProgramError for FriendsProgramError {
     fn print<E>(&self)
     where
         E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
         match self {
-            ProgramTemplateError::ExampleError => msg!("Example error message"),
+            FriendsProgramError::CalculationError => msg!("Calculation error"),
         }
     }
 }
