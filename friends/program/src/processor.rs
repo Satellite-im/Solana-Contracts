@@ -193,7 +193,62 @@ impl Processor {
         _thread_id2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let request_from_to_account_info = next_account_info(account_info_iter)?;
+        let request_to_from_account_info = next_account_info(account_info_iter)?;
+        let last_request_from_to_account_info = next_account_info(account_info_iter)?;
+        let last_request_to_from_account_info = next_account_info(account_info_iter)?;
+        let friend_info_from_account_info = next_account_info(account_info_iter)?;
+        let friend_info_to_account_info = next_account_info(account_info_iter)?;
+        let friend_to_account_info = next_account_info(account_info_iter)?;
+        let friend_from_account_info = next_account_info(account_info_iter)?;
+        let user_to_account_info = next_account_info(account_info_iter)?;
+        let rent_account_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_account_info)?;
+
+        // check that request_from_to_account_info is initialized
+        // check that request_to_from_account_info is initialized
+        // check that last_request_from_to_account_info is initialized
+        // check that last_request_to_from_account_info is initialized
+        // check that friend_info_from_account_info in initialized
+        // check that friend_info_to_account_info in initialized
+        // check that "from" and "to" data in request_from_to_account_info are equal to data in friend_info_from_account_info and friend_info_to_account_info
+        // check that "from" and "to" data in request_to_from_account_info are equal to data in friend_info_from_account_info and friend_info_to_account_info
+        // check that "from" data in last_request_from_to_account_info are equal to data in friend_info_from_account_info
+        // check that "to" data in last_request_to_from_account_info are equal to data in friend_info_to_account_info
+        // check that friend_to_account_info is not initialized, it also checks that they are not friends
+        // check that friend_to_account_info is rent exempt
+        // check that friend_from_account_info is not initialized, it also checks that they are not friends
+        // check that friend_from_account_info is rent exempt
+        // check that friend_to_account_info is generated correct
+        // check that friend_from_account_info is generated correct
+        // check that user_to_account_info key is the same as in friend_info_to_account_info
+        // check that user_to_account_info is signer
+
+        // remove_request(request_from_to, request_to_from, last_request_from_to, last_request_to_from)
+            // if request_from_to address the same as last_request_from_to {
+                // check that it's generated correct by getting requests_outgoing - 1 from friend_info_from_account_info, and we also sure that it's the last one
+                // change data
+            //}
+            // else {
+                // check that the last request is really last by getting requests_outgoing - 1 from friend_info_from_account_info
+                // change data
+            //}
+            // if request_to_from address the same as last_request_to_from {
+                // check that it's generated correct by getting requests_incoming - 1 from friend_info_to_account_info, and we also sure that it's the last one
+                // change data
+            //}
+            // else {
+                // check that the last request is really last by getting requests_incoming - 1 from friend_info_to_account_info
+                // change data
+            //}
+        
+        // fill friend_to_account_info with data
+        // fill friend_from_account_info with data
+
+        // change data in friend_info_from_account_info
+        // change data in friend_info_to_account_info
+
+        // serialize accounts
 
         Ok(())
     }

@@ -31,11 +31,13 @@ pub enum FriendsInstruction {
     ///
     ///   0. `[w]` Friendship request for "from" account
     ///   1. `[w]` Friendship request for "to" account
-    ///   2. `[w]` Friend info of account which request friendship
-    ///   3. `[w]` Friend info of account with which friendship requested
-    ///   4. `[w]` Uninitialized Friend account for "to" account
-    ///   5. `[w]` Uninitialized Friend account for "from" account
-    ///   6. `[rs]` friend_info_to's "user" key. To verify acception side
+    ///   2. `[w]` Last friendship request for "from" account
+    ///   3. `[w]` Last friendship request for "to" account
+    ///   4. `[w]` Friend info of account which request friendship
+    ///   5. `[w]` Friend info of account with which friendship requested
+    ///   6. `[w]` Uninitialized Friend account for "to" account
+    ///   7. `[w]` Uninitialized Friend account for "from" account
+    ///   8. `[rs]` friend_info_to's "user" key. To verify acception side
     AcceptRequest([u8; 32], [u8; 32]),
 
     /// DenyRequest
@@ -127,6 +129,8 @@ pub fn accept_request(
     program_id: &Pubkey,
     request_from_to: &Pubkey,
     request_to_from: &Pubkey,
+    last_request_from_to: &Pubkey,
+    last_request_to_from: &Pubkey,
     friend_info_from: &Pubkey,
     friend_info_to: &Pubkey,
     friend_to: &Pubkey,
@@ -142,6 +146,8 @@ pub fn accept_request(
     let accounts = vec![
         AccountMeta::new(*request_from_to, false),
         AccountMeta::new(*request_to_from, false),
+        AccountMeta::new(*last_request_from_to, false),
+        AccountMeta::new(*last_request_to_from, false),
         AccountMeta::new(*friend_info_from, false),
         AccountMeta::new(*friend_info_to, false),
         AccountMeta::new(*friend_to, false),
