@@ -4,7 +4,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
 /// Friend info
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Default)]
 pub struct FriendInfo {
     /// User key
     pub user: Pubkey,
@@ -17,7 +17,7 @@ pub struct FriendInfo {
 }
 
 /// Friend request
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Default)]
 pub struct Request {
     /// From key
     pub from: Pubkey,
@@ -26,7 +26,7 @@ pub struct Request {
 }
 
 /// Friend
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Default)]
 pub struct Friend {
     /// User key
     pub user: Pubkey,
@@ -36,4 +36,25 @@ pub struct Friend {
     pub thread_id1: [u8; 32],
     /// Conversation thread hash 2
     pub thread_id2: [u8; 32],
+}
+
+impl FriendInfo {
+    /// Check if struct is initialized
+    pub fn is_initialized(&self) -> bool {
+        *self != FriendInfo::default()
+    }
+}
+
+impl Request {
+    /// Check if struct is initialized
+    pub fn is_initialized(&self) -> bool {
+        *self != Request::default()
+    }
+}
+
+impl Friend {
+    /// Check if struct is initialized
+    pub fn is_initialized(&self) -> bool {
+        *self != Friend::default()
+    }
 }

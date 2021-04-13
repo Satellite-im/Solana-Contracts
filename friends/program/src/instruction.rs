@@ -113,6 +113,7 @@ pub fn make_request(
         AccountMeta::new(*friend_info_from, false),
         AccountMeta::new(*friend_info_to, false),
         AccountMeta::new_readonly(*user_from, true),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
     ];
     Ok(Instruction {
         program_id: *program_id,
@@ -146,6 +147,7 @@ pub fn accept_request(
         AccountMeta::new(*friend_to, false),
         AccountMeta::new(*friend_from, false),
         AccountMeta::new_readonly(*user_to, true),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
     ];
     Ok(Instruction {
         program_id: *program_id,
