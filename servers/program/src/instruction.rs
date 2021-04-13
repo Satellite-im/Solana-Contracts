@@ -7,12 +7,12 @@ use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubk
 /// Instructions
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
-    
     /// [initialize_dweller]
     /// accounts
     /// - signer, write dweller
     ///
-    /// Input: [InitializeDwellerInput]
+    /// Input:
+    ///  [InitializeDwellerInput]
     InitializeDweller,
 
     /// accounts
@@ -36,14 +36,14 @@ pub enum Instruction {
 
     /// Update the users status
     /// Accounts:
-    /// - signer  owner Dweller who ows account 
-    SetStatus,
+    /// - signer  owner Dweller who ows account
+    SetDwellerStatus,
 
     /// - signer  admin
     /// - write   channel
     /// input:
     /// - type_id u8
-    /// - name  [u8; 32] 
+    /// - name  [u8; 32]
     AddChannel,
 
     /// - signer  admin
@@ -57,7 +57,7 @@ pub enum Instruction {
     /// - write  server
     /// - signer admin
     /// - write  group
-    /// Input: 
+    /// Input:
     /// - [CreateGroupInput]
     CreateGroup,
 
@@ -76,7 +76,6 @@ pub enum Instruction {
     /// - write     group_channel
     /// - read      channel
     AddChannelToGroup,
-
 
     /// Accounts:
     /// - write     server
@@ -98,7 +97,7 @@ pub enum Instruction {
     /// - write     admin
     /// - write     admin_last
     RemoveAdmin,
-    
+
     ///   - writeable         server     
     ///   - writeable         dweller
     ///   - writeable         dweller_server
@@ -106,7 +105,7 @@ pub enum Instruction {
     JoinServer,
 
     /// accounts:
-    /// 
+    ///
     /// - write    server
     /// - write    member
     /// - write    member_last
@@ -117,25 +116,25 @@ pub enum Instruction {
     /// accounts:
     /// - write     server
     /// - write     member_status
-    InviteToServer, 
+    InviteToServer,
 
     /// accounts:
     /// - write     server
     /// - write     member_status
     /// - write     member_status_last
-    RevokeInviteServer, 
+    RevokeInviteServer,
 
     /// accounts:
     /// - signer admin
     /// - write  server
-    /// 
+    ///
     /// Input: [SetNameInput]
     SetServerName,
 
     /// accounts:
     /// - signer admin
     /// - write  server
-    /// 
+    ///
     /// Input: [SetHashInput]        
     SetServerDb,
 }
@@ -143,42 +142,33 @@ pub enum Instruction {
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct CreateGroupInput {
-    pub name: [u8;32],
+    pub name: [u8; 32],
 }
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetNameInput {
-    pub name: [u8;32],
+    pub name: [u8; 32],
 }
-
 
 /// IPFS hash
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetHashInput {
-    pub hash: [u8;64],
+    pub hash: [u8; 64],
 }
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct InitializeDwellerInput {
-    pub name: [u8;32],
+    pub name: [u8; 32],
 }
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct InitializeServerInput {
-    pub name: [u8;32],
+    pub name: [u8; 32],
 }
-
-
-    /// [initialize_dweller]
-    /// accounts
-    /// - signer, write dweller
-    ///
-    /// Input: [InitializeDwellerInput]
-    
 
 /// [Instruction::InitializeDweller]
 #[allow(clippy::too_many_arguments)]
@@ -189,9 +179,7 @@ pub fn initialize_dweller(
     let mut data = Instruction::InitializeDweller.try_to_vec()?;
     let mut input = input.try_to_vec()?;
     data.append(&mut input);
-    let accounts = vec![
-        AccountMeta::new(*dweller, true),
-    ];
+    let accounts = vec![AccountMeta::new(*dweller, true)];
     Ok(solana_program::instruction::Instruction {
         program_id: crate::id(),
         accounts,

@@ -11,6 +11,8 @@ pub mod state;
 #[cfg(test)]
 mod test;
 
+mod prelude;
+
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
