@@ -11,7 +11,7 @@ use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubk
 // }
 
 /// Instructions
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, ToPrimitive)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
     /// Joins dweller to server.
     ///
@@ -23,7 +23,7 @@ pub enum Instruction {
     ///   - writeable         dweller
     ///   - writeable         dweller_server
     ///   - writeable         server_member
-    ///   - writeable          server 
+    ///   - writeable         server 
     JoinServer,
 
     /// Accounts: 
@@ -34,36 +34,87 @@ pub enum Instruction {
     SetDwellerName,
 
     /// Change dweller's display photo. Consider using PNG or JPEG photos for usability.
-    SetPhoto,
+    SetDwellerPhoto,
 
     /// Update the users status
     /// Accounts:
     /// - signer  owner Dweller who ows account 
     SetStatus,
 
-    // - signer  admin
-    // - write   channel
-    // input:
-    // - type_id u8
-    // - name  [u8; 32] 
+    /// - signer  admin
+    /// - write   channel
+    /// input:
+    /// - type_id u8
+    /// - name  [u8; 32] 
     AddChannel,
 
-    // - signer  admin
-    // - write   server
-    // - write   channel
-    // - write   what about channel group mapping account? reuse place holder with SOL? require more sol?
+    /// - signer  admin
+    /// - write   server
+    /// - write   channel
+    /// - write   what about channel group mapping account? reuse place holder with SOL? require more sol?
+    /// - write   channel_last
     DeleteChannel,
 
-    // signer admin
-    // write group
-    // write [] group_channels
-    // input:
-    // name [u8;32]
-    // 
+    /// Accounts:
+    /// - write  server
+    /// - signer admin
+    /// - write  group
+    /// Input: 
+    /// - [CreateGroupInput]
     CreateGroup,
 
+    /// Accounts:
+    /// - write     server
+    /// - signer    admin
+    /// - write     group
+    /// - write     group_last
+    /// - write     group_channel
+    /// - write     group_channel_last
+    DeleteGroup,
+
+    /// Accounts:
+    /// - write     server
+    /// - signer    admin
+    /// - write     group_channel
+    /// - read      channel
     AddChannelToGroup,
+
+
+    /// Accounts:
+    /// - write     server
+    /// - signer    admin
+    /// - read      channel
+    /// - write     group_channel
+    /// - write     group_channel_last
+    RemoveChannelFromGroup,
+
+    /// Accounts:
+    /// - signer    owner
+    /// - write     server
+    /// - write     admin
+    AddAdmin,
+
+    /// Accounts:
+    /// - signer    owner
+    /// - write     server
+    /// - write     admin
+    /// - write     admin_last
+    RemoveAdmin,
+
+    /// Accounts:
+    /// - write     server
+    /// - read      member_status
+    /// - read      member
+    Join,
 }
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct CreateGroupInput {
+    pub name: [u8;32],
+}
+
+
 
 // /// Create `InitializeAsset` instruction
 // #[allow(clippy::too_many_arguments)]

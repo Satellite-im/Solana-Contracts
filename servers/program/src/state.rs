@@ -32,14 +32,13 @@ pub struct Dweller {
     /// This is the display name of a dweller
     pub name: [u8;32],
     
-    /// Photo identification of the dweller
+    /// Optional Photo identification of the dweller
     /// Multihash referencing IPFS hash of dwellers photo
-    pub photo_hash: Option<[u8;64]>,    
+    pub photo_hash: [u8;64],    
 
-    // here could be some u8 for status before String , or brought to other account
-    pub status : String,
+    /// string
+    pub status : [u8;32],
 }
-
 
 /// Mapping of `Dweller` to `Server`.
 /// Account address is be derived from `Dweller`
@@ -47,12 +46,9 @@ pub struct Dweller {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct DwellerServer {
     pub version: StateVersion,
-    
-    pub dweller: Pubkey,
-    
+    pub dweller: Pubkey,    
     pub server: Pubkey,
 }
-
 
 /// Server members whom have joined
 /// Has program derived address from Server
@@ -88,28 +84,25 @@ pub struct ServerAdministrator {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct Server {
     pub version: StateVersion,
-    /// must be dweller
+    /// must be dweller, can add and remove admins
     pub owner: Pubkey,
-
-    // can join and leave Dwellers into server
-    pub authority: Pubkey,
 
     pub name: [u8;32],
     
+    /// empty hash is optional
     /// Photo identification of the dweller
     /// Multihash referencing IPFS hash of dwellers photo
-    pub photo_hash: Option<[u8;64]>,    
+    pub photo_hash: [u8;64],     
 
-    /// additional access hash
-    pub db_hash: Option<[u8;64]>, 
+    /// optional additional access hash
+    pub db_hash: [u8;64], 
 
-    // we store roles as separate account types, not as enum flag in member state as in original Solidity contract
-    // could store index free slots as bit vector of know size, growable size or as (b-?)tree of account
     /// Server members whom have joined, index used to derive addresses
-    pub members: u16,
-    pub administrators:u8,  
-    pub channels: u8,
-    pub groups:u8,
+    pub members: u64,
+    pub administrators:u32,  
+    pub channels: u32,
+    pub groups:u32,
+    pub groups_channels:u32,
 
 }
 
