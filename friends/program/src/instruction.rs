@@ -159,8 +159,8 @@ pub fn deny_request(
     program_id: &Pubkey,
     request_from_to: &Pubkey,
     request_to_from: &Pubkey,
-    last_request_from: &Pubkey,  // last outgoing request for requested account
-    last_request_to: &Pubkey,  // last incoming request for denied account
+    last_request_from: &Pubkey, // last outgoing request for requested account
+    last_request_to: &Pubkey,   // last incoming request for denied account
     friend_info_from: &Pubkey,
     friend_info_to: &Pubkey,
     user_to: &Pubkey,
@@ -190,8 +190,8 @@ pub fn remove_request(
     program_id: &Pubkey,
     request_from_to: &Pubkey,
     request_to_from: &Pubkey,
-    last_request_from: &Pubkey,  // last outgoing request for requested account
-    last_request_to: &Pubkey,  // last incoming request for denied account
+    last_request_from: &Pubkey, // last outgoing request for requested account
+    last_request_to: &Pubkey,   // last incoming request for denied account
     friend_info_from: &Pubkey,
     friend_info_to: &Pubkey,
     user_from: &Pubkey,

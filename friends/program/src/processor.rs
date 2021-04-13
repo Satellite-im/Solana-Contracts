@@ -10,8 +10,65 @@ use solana_program::{
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
-    /// Initialize the pool
-    pub fn process_example_instruction(
+    /// Initialize the friend info
+    pub fn process_init_friend_info_instruction(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let _example_account_info = next_account_info(account_info_iter)?;
+
+        Ok(())
+    }
+
+    /// Create friend request
+    pub fn process_create_request_instruction(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let _example_account_info = next_account_info(account_info_iter)?;
+
+        Ok(())
+    }
+
+    /// Accept friend request
+    pub fn process_accept_request_instruction(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        _thread_id1: [u8; 32],
+        _thread_id2: [u8; 32],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let _example_account_info = next_account_info(account_info_iter)?;
+
+        Ok(())
+    }
+
+    /// Deny friend request
+    pub fn process_deny_request_instruction(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let _example_account_info = next_account_info(account_info_iter)?;
+
+        Ok(())
+    }
+
+    /// Remove friend request
+    pub fn process_remove_request_instruction(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let _example_account_info = next_account_info(account_info_iter)?;
+
+        Ok(())
+    }
+
+    /// Remove friend
+    pub fn process_remove_friend_instruction(
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
@@ -30,9 +87,31 @@ impl Processor {
         let instruction = FriendsInstruction::try_from_slice(input)
             .or(Err(ProgramTemplateError::ExampleError))?;
         match instruction {
-            FriendsInstruction::ExampleInstruction => {
-                msg!("Instruction: ExampleInstruction");
-                Self::process_example_instruction(program_id, accounts)
+            FriendsInstruction::InitFriendInfo => {
+                msg!("Instruction: InitFriendInfo");
+                Self::process_init_friend_info_instruction(program_id, accounts)
+            }
+            FriendsInstruction::MakeRequest => {
+                msg!("Instruction: MakeRequest");
+                Self::process_create_request_instruction(program_id, accounts)
+            }
+            FriendsInstruction::AcceptRequest(thread_id1, thread_id2) => {
+                msg!("Instruction: AcceptRequest");
+                Self::process_accept_request_instruction(
+                    program_id, accounts, thread_id1, thread_id2,
+                )
+            }
+            FriendsInstruction::DenyRequest => {
+                msg!("Instruction: DenyRequest");
+                Self::process_deny_request_instruction(program_id, accounts)
+            }
+            FriendsInstruction::RemoveRequest => {
+                msg!("Instruction: RemoveRequest");
+                Self::process_remove_request_instruction(program_id, accounts)
+            }
+            FriendsInstruction::RemoveFriend => {
+                msg!("Instruction: RemoveFriend");
+                Self::process_remove_friend_instruction(program_id, accounts)
             }
         }
     }
