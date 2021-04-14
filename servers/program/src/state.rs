@@ -27,7 +27,7 @@ pub struct Dweller {
     pub version: StateVersion,
 
     /// used to derive DwellerServer
-    pub servers: u32,
+    pub servers: u64,
 
     /// This is the display name of a dweller
     pub name: [u8; 32],
@@ -48,7 +48,7 @@ pub struct DwellerServer {
     pub version: StateVersion,
     pub dweller: Pubkey,
     /// [Dweller::servers] index used to derive address
-    pub index: u32,        
+    pub index: u64,
     pub server: Pubkey,
 }
 
@@ -62,16 +62,18 @@ pub struct ServerMember {
     pub version: StateVersion,
     pub server: Pubkey,
     /// [Server::members] index used to derive address
-    pub index: u64,        
+    pub index: u64,
     pub dweller: Pubkey,
 }
 
-/// Dwellers who were invited. Payed by admin or registry pool(server)?
+/// Dwellers who were invited.
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerMemberStatus {
     pub version: StateVersion,
     pub server: Pubkey,
+    pub dweller: Pubkey,
+    pub index: u64,
     pub invited: bool,
 }
 
@@ -83,7 +85,7 @@ pub struct ServerAdministrator {
     pub dweller: Pubkey,
 
     /// [Server::administrators] index used to derive address
-    pub index: u32,
+    pub index: u64,
 }
 
 #[repr(C)]
@@ -105,10 +107,11 @@ pub struct Server {
 
     /// Server members whom have joined, index used to derive addresses
     pub members: u64,
-    pub administrators: u32,
-    pub channels: u32,
-    pub groups: u32,
-    pub groups_channels: u32,
+    pub member_statuses: u64,
+    pub administrators: u64,
+    pub channels: u64,
+    pub groups: u64,
+    pub groups_channels: u64,
 }
 
 #[repr(C)]
@@ -117,7 +120,7 @@ pub struct ServerChannel {
     pub version: StateVersion,
     pub server: Pubkey,
     /// [Server::channels] index used to derive address
-    pub index: u32,    
+    pub index: u64,
     pub type_id: u8,
     pub name: [u8; 32],
 }
@@ -128,9 +131,8 @@ pub struct ServerGroup {
     pub version: StateVersion,
     pub server: Pubkey,
     /// [Server::groups] index used to derive address
-    pub index: u32,
+    pub index: u64,
     pub name: [u8; 32],
-    
 }
 
 #[repr(C)]
@@ -139,7 +141,7 @@ pub struct ServerGroupChannel {
     pub version: StateVersion,
     pub server: Pubkey,
     /// [Server::group_channels] index used to derive address
-    pub index: u32,    
+    pub index: u64,
     pub group: Pubkey,
     pub channel: Pubkey,
 }

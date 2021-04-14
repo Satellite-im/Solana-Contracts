@@ -58,7 +58,7 @@ pub enum Instruction {
     AddChannel,
 
     /// Accounts:
-    /// - signer        dweller 
+    /// - signer        dweller
     /// - read          server_administrator
     /// - write         server
     /// - write         server_channel
@@ -104,7 +104,7 @@ pub enum Instruction {
     RemoveChannelFromGroup,
 
     /// Accounts:
-    /// 
+    ///
     /// - signer    owner of server
     /// - read      dweller to become admin
     /// - write     server
@@ -118,10 +118,11 @@ pub enum Instruction {
     /// - write     admin_last
     RemoveAdmin,
 
+    /// Accounts:
     ///   - writeable         server     
-    ///   - writeable         dweller
+    ///   - read signer      dweller
     ///   - writeable         dweller_server
-    ///   - writeable         member
+    ///   - writeable         server_member
     JoinServer,
 
     /// accounts:
@@ -133,8 +134,11 @@ pub enum Instruction {
     /// - write    dweller_server_last
     LeaveServer,
 
-    /// accounts:
+    /// Accounts:
     /// - write     server
+    /// - signer    dweller_admin
+    /// - read      server_administrator
+    /// - read      dweller
     /// - write     member_status
     InviteToServer,
 

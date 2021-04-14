@@ -1,8 +1,11 @@
 //! Program state processor
 
 use super::borsh::*;
-use crate::{borsh::BorshSerializeConst, error::Error, instruction::*, state::*};
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
+use crate::{borsh::{AccountWithBorsh, BorshSerializeConst}, error::Error, instruction::*, program::create_program_index, state::*};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
+    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
+};
 
 use super::prelude::*;
 
@@ -189,9 +192,7 @@ impl Processor {
             )?;
 
             if channel_key == *server_channel.key {
-                let server_administrator_data = server_administrator.try_borrow_data()?;
-                let server_administrator_state =
-                    ServerAdministrator::deserialize_const(&server_data)?;
+                let server_administrator_state = server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = Pubkey::create_program_address(
                         &[
@@ -204,14 +205,7 @@ impl Processor {
                     if administrator_member_key == *server_administrator.key {
                         let mut channel_data = server_channel.try_borrow_mut_data()?;
                         let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
-                        let channel_member_key = Pubkey::create_program_address(
-                            &[
-                                &server.key.to_bytes()[..32],
-                                &server_state.channels.to_le_bytes()[..8],
-                                b"Server",
-                            ],
-                            program_id,
-                        )?;
+                        let channel_member_key = create_program_index(program_id, b"Server", *server.key,  server_state.channels)?;
 
                         if channel_member_key == *server_channel.key {
                             channel_state.version = StateVersion::V1;
@@ -223,7 +217,7 @@ impl Processor {
                                     .checked_add(1)
                                     .ok_or::<ProgramError>(Error::Overflow.into())?;
 
-                            channel_state.index = server_state.groups;                                        
+                            channel_state.index = server_state.groups;
                             channel_state.serialize_const(&mut channel_data)?;
                             server_state.serialize_const(&mut server_data)?;
 
@@ -295,13 +289,12 @@ impl Processor {
                             group_state.server = *server.key;
                             group_state.name = input.name.clone();
                             group_state.version = StateVersion::V1;
-                            server_state.groups =
-                                server_state
-                                    .groups
-                                    .checked_add(1)
-                                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+                            server_state.groups = server_state
+                                .groups
+                                .checked_add(1)
+                                .ok_or::<ProgramError>(Error::Overflow.into())?;
 
-                            group_state.index = server_state.groups;                                    
+                            group_state.index = server_state.groups;
                             group_state.serialize_const(&mut group_data)?;
                             server_state.serialize_const(&mut server_data)?;
 
@@ -322,7 +315,6 @@ impl Processor {
             Err(ProgramError::MissingRequiredSignature)
         }
     }
-    
 
     fn add_admin<'a>(
         program_id: &Pubkey,
@@ -335,7 +327,7 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let administrator__key = Pubkey::create_program_address(
+            let administrator_key = Pubkey::create_program_address(
                 &[
                     &server.key.to_bytes()[..32],
                     &server_state.administrators.to_le_bytes()[..8],
@@ -344,25 +336,88 @@ impl Processor {
                 program_id,
             )?;
 
-            if administrator__key == *server_administrator.key {
+            if administrator_key == *server_administrator.key {
                 let mut server_administrator_data = server_administrator.try_borrow_mut_data()?;
                 let mut server_administrator_state =
                     ServerAdministrator::deserialize_const(&server_administrator_data)?;
-                if server_administrator_state.dweller == *dweller.key {                    
+                if server_administrator_state.dweller == *dweller.key {
                     server_administrator_state.server = *server.key;
                     server_administrator_state.version = StateVersion::V1;
-                            server_state.administrators =
-                                server_state
-                                    .administrators
-                                    .checked_add(1)
-                                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+                    server_state.administrators = server_state
+                        .administrators
+                        .checked_add(1)
+                        .ok_or::<ProgramError>(Error::Overflow.into())?;
 
-                                    server_administrator_state.index = server_state.administrators;                                    
-                                    server_administrator_state.serialize_const(&mut server_administrator_data)?;
-                            server_state.serialize_const(&mut server_data)?;
+                    server_administrator_state.index = server_state.administrators;
+                    server_administrator_state.serialize_const(&mut server_administrator_data)?;
+                    server_state.serialize_const(&mut server_data)?;
 
-                            Ok(())
-                        
+                    Ok(())
+                } else {
+                    Err(Error::InvalidDerivedAddress.into())
+                }
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn invite_to_server<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller_admin: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        member_status: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller_admin.is_signer {
+            let mut server_administrator_state =
+                server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
+
+            let administrator_key = Pubkey::create_program_address(
+                &[
+                    &server.key.to_bytes()[..32],
+                    &server_administrator_state.index.to_le_bytes()[..8],
+                    b"Server",
+                ],
+                program_id,
+            )?;
+
+            if administrator_key == *server_administrator.key {
+                let mut server_data = server.try_borrow_mut_data()?;
+                let mut server_state = Server::deserialize_const(&server_data)?;
+
+                let member_status_key = Pubkey::create_program_address(
+                    &[
+                        &server.key.to_bytes()[..32],
+                        &server_state.member_statuses.to_le_bytes()[..8],
+                        b"Server",
+                    ],
+                    program_id,
+                )?;
+
+                if member_status_key == *member_status.key {
+                    let mut member_status_data = member_status.try_borrow_mut_data()?;
+                    let mut member_status_state =
+                        ServerMemberStatus::deserialize_const(&member_status_data)?;
+
+                    member_status_state.server = *server.key;
+                    member_status_state.version = StateVersion::V1;
+                    member_status_state.dweller = *dweller.key;
+                    member_status_state.invited = true;
+                    server_state.member_statuses = server_state
+                        .member_statuses
+                        .checked_add(1)
+                        .ok_or::<ProgramError>(Error::Overflow.into())?;
+
+                    member_status_state.index = server_state.member_statuses;
+
+                    server_state.serialize_const(&mut server_data)?;
+
+                    server_state.serialize_const(&mut server_data)?;
+                    Ok(())
                 } else {
                     Err(Error::InvalidDerivedAddress.into())
                 }
@@ -494,16 +549,27 @@ impl Processor {
                 msg!("Instruction: AddAdmin");
                 match accounts {
                     [owner, dweller, server, server_administrator, ..] => {
-                        
-                        Self::add_admin(
+                        Self::add_admin(program_id, owner, dweller, server, server_administrator)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::InviteToServer => {
+                msg!("Instruction: InviteToServer");
+                match accounts {
+                    [server, dweller_admin, server_administrator, dweller, member_status, ..] => {
+                        Self::invite_to_server(
                             program_id,
-                            owner, dweller, server, server_administrator
+                            server,
+                            dweller_admin,
+                            server_administrator,
+                            dweller,
+                            member_status,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-    
             _ => todo!(),
         }
     }

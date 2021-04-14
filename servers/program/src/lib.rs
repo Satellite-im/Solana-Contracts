@@ -10,7 +10,7 @@ mod processor_tests;
 pub mod state;
 #[cfg(test)]
 mod test;
-
+mod program;
 mod prelude;
 
 #[cfg(not(feature = "no-entrypoint"))]
