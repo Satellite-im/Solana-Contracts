@@ -15,6 +15,9 @@ pub enum FriendsProgramError {
     /// Calculation error
     #[error("Calculation error")]
     CalculationError,
+    /// Addresses in request don't match addresses in FriendInfo accounts
+    #[error("Addresses in request don't match addresses in FriendInfo accounts")]
+    WrongRequestData,
 }
 impl From<FriendsProgramError> for ProgramError {
     fn from(e: FriendsProgramError) -> Self {
@@ -34,6 +37,9 @@ impl PrintProgramError for FriendsProgramError {
     {
         match self {
             FriendsProgramError::CalculationError => msg!("Calculation error"),
+            FriendsProgramError::WrongRequestData => {
+                msg!("Addresses in request don't match addresses in FriendInfo accounts")
+            }
         }
     }
 }

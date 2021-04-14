@@ -28,6 +28,58 @@ impl Processor {
     /// Friend seed
     pub const FRIEND_SEED: &'static [u8] = b"friend";
 
+    /// Remove request
+    pub fn remove_request(
+        request_from_to: &mut Request,
+        request_from_to_acc: &AccountInfo,
+        request_to_from: &mut Request,
+        request_to_from_acc: &AccountInfo,
+        last_request_from_to: &mut Request,
+        last_request_from_to_acc: &AccountInfo,
+        last_request_to_from: &mut Request,
+        last_request_to_from_acc: &AccountInfo,
+        friend_info_from: &FriendInfo,
+        friend_info_to: &FriendInfo,
+        program_id: &Pubkey,
+    ) -> Result<(), ProgramError> {
+        if request_from_to_acc.key == last_request_from_to_acc.key {
+            // check that it's generated correct by getting requests_outgoing - 1 from friend_info_from_account_info, and we also sure that it's the last one
+            let index = friend_info_from
+                .requests_outgoing
+                .checked_sub(1)
+                .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+            let generated_request_key = Pubkey::create_program_address(
+                &[
+                    &request_from_to.from.to_bytes()[..32],
+                    &index.to_le_bytes()[..8],
+                ],
+                program_id,
+            )?;
+            if generated_request_key != *request_from_to_acc.key {
+                return Err(ProgramError::InvalidSeeds);
+            }
+            *request_from_to = Request::default();
+            request_from_to.serialize(&mut *request_from_to_acc.data.borrow_mut())?;
+        }
+        else {
+            // check that the last request is really last by getting requests_outgoing - 1 from friend_info_from_account_info
+            let index = friend_info_from
+                .requests_outgoing
+                .checked_sub(1)
+                .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+            // change data
+        }
+        // if request_to_from address the same as last_request_to_from {
+        // check that it's generated correct by getting requests_incoming - 1 from friend_info_to_account_info, and we also sure that it's the last one
+        // change data
+        //}
+        // else {
+        // check that the last request is really last by getting requests_incoming - 1 from friend_info_to_account_info
+        // change data
+        //}
+        Ok(())
+    }
+
     /// Initialize the friend info
     pub fn process_init_friend_info_instruction(
         program_id: &Pubkey,
@@ -156,13 +208,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-
         request_from_to.from = friend_info_from.user;
         request_from_to.to = friend_info_to.user;
 
         request_to_from.from = friend_info_from.user;
         request_to_from.to = friend_info_to.user;
-
 
         friend_info_from.requests_outgoing =
             friend_info_from
@@ -187,7 +237,7 @@ impl Processor {
 
     /// Accept friend request
     pub fn process_accept_request_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         _thread_id1: [u8; 32],
         _thread_id2: [u8; 32],
@@ -206,42 +256,115 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_account_info)?;
 
         // check that request_from_to_account_info is initialized
+        let mut request_from_to =
+            Request::try_from_slice(&request_from_to_account_info.data.borrow())?;
+        if !request_from_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that request_to_from_account_info is initialized
+        let mut request_to_from =
+            Request::try_from_slice(&request_to_from_account_info.data.borrow())?;
+        if !request_to_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that last_request_from_to_account_info is initialized
+        let mut last_request_from_to =
+            Request::try_from_slice(&last_request_from_to_account_info.data.borrow())?;
+        if !last_request_from_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that last_request_to_from_account_info is initialized
+        let mut last_request_to_from =
+            Request::try_from_slice(&last_request_to_from_account_info.data.borrow())?;
+        if !last_request_to_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that friend_info_from_account_info in initialized
+        let mut friend_info_from =
+            FriendInfo::try_from_slice(&friend_info_from_account_info.data.borrow())?;
+        if !friend_info_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that friend_info_to_account_info in initialized
+        let mut friend_info_to =
+            FriendInfo::try_from_slice(&friend_info_to_account_info.data.borrow())?;
+        if !friend_info_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
         // check that "from" and "to" data in request_from_to_account_info are equal to data in friend_info_from_account_info and friend_info_to_account_info
+        if request_from_to.from != friend_info_from.user
+            || request_from_to.to != friend_info_to.user
+        {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
         // check that "from" and "to" data in request_to_from_account_info are equal to data in friend_info_from_account_info and friend_info_to_account_info
+        if request_to_from.from != friend_info_from.user
+            || request_to_from.to != friend_info_to.user
+        {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
         // check that "from" data in last_request_from_to_account_info are equal to data in friend_info_from_account_info
+        if last_request_from_to.from != friend_info_from.user {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
         // check that "to" data in last_request_to_from_account_info are equal to data in friend_info_to_account_info
+        if last_request_to_from.to != friend_info_to.user {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
         // check that friend_to_account_info is not initialized, it also checks that they are not friends
+        let mut friend_to = Friend::try_from_slice(&friend_to_account_info.data.borrow())?;
+        if friend_to.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+        }
         // check that friend_to_account_info is rent exempt
+        if !rent.is_exempt(
+            friend_to_account_info.lamports(),
+            friend_to_account_info.data_len(),
+        ) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
         // check that friend_from_account_info is not initialized, it also checks that they are not friends
+        let mut friend_from = Friend::try_from_slice(&friend_from_account_info.data.borrow())?;
+        if friend_from.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+        }
         // check that friend_from_account_info is rent exempt
+        if !rent.is_exempt(
+            friend_from_account_info.lamports(),
+            friend_from_account_info.data_len(),
+        ) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
         // check that friend_to_account_info is generated correct
+        let generated_friend_to_key = Pubkey::create_program_address(
+            &[
+                &friend_info_to.user.to_bytes()[..32],
+                &friend_info_from.user.to_bytes()[..32],
+                Self::FRIEND_SEED,
+            ],
+            program_id,
+        )?;
+        if generated_friend_to_key != *friend_to_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
         // check that friend_from_account_info is generated correct
+        let generated_friend_from_key = Pubkey::create_program_address(
+            &[
+                &friend_info_from.user.to_bytes()[..32],
+                &friend_info_to.user.to_bytes()[..32],
+                Self::FRIEND_SEED,
+            ],
+            program_id,
+        )?;
+        if generated_friend_from_key != *friend_from_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
         // check that user_to_account_info key is the same as in friend_info_to_account_info
         // check that user_to_account_info is signer
+        if friend_info_to.user != *user_to_account_info.key || !user_to_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
-        // remove_request(request_from_to, request_to_from, last_request_from_to, last_request_to_from)
-            // if request_from_to address the same as last_request_from_to {
-                // check that it's generated correct by getting requests_outgoing - 1 from friend_info_from_account_info, and we also sure that it's the last one
-                // change data
-            //}
-            // else {
-                // check that the last request is really last by getting requests_outgoing - 1 from friend_info_from_account_info
-                // change data
-            //}
-            // if request_to_from address the same as last_request_to_from {
-                // check that it's generated correct by getting requests_incoming - 1 from friend_info_to_account_info, and we also sure that it's the last one
-                // change data
-            //}
-            // else {
-                // check that the last request is really last by getting requests_incoming - 1 from friend_info_to_account_info
-                // change data
-            //}
-        
         // fill friend_to_account_info with data
         // fill friend_from_account_info with data
 
