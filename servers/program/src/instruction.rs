@@ -51,7 +51,7 @@ pub enum Instruction {
     /// - signer    dweller
     /// - read      server_administrator with dweller
     /// - write     server
-    /// - write     channel
+    /// - write     server_channel
     ///
     /// Input:
     /// [AddChannelInput]

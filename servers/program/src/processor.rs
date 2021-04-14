@@ -1,7 +1,7 @@
 //! Program state processor
 
 use super::borsh::*;
-use crate::{error::Error, instruction::*, state::*};
+use crate::{borsh::BorshSerializeConst, error::Error, instruction::*, state::*};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
@@ -207,8 +207,31 @@ impl Processor {
                     if administrator_member_key == *server_administrator.key {
                         let mut channel_data = server_channel.try_borrow_mut_data()?;
                         let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
+                        let channel_member_key = Pubkey::create_program_address(
+                            &[
+                                &server.key.to_bytes()[..32],
+                                &server_state.channels.to_le_bytes()[..8],
+                                b"Server",
+                            ],
+                            program_id,
+                        )?;
 
-                        Ok(())
+                        if channel_member_key == *server_channel.key {
+                            channel_state.server = *server.key;
+                            channel_state.name = input.name.clone();
+                            server_state.channels =
+                                server_state
+                                    .channels
+                                    .checked_add(1)
+                                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+
+                            channel_state.serialize_const(&mut channel_data)?;
+                            server_state.serialize_const(&mut server_data)?;
+
+                            Ok(())
+                        } else {
+                            Err(Error::InvalidDerivedAddress.into())
+                        }
                     } else {
                         Err(Error::InvalidDerivedAddress.into())
                     }
@@ -304,7 +327,7 @@ impl Processor {
             Instruction::AddChannel => {
                 msg!("Instruction: AddChannel");
                 match accounts {
-                    [dweller, server_administrator, server, channel, ..] => {
+                    [dweller, server_administrator, server, server_channel, ..] => {
                         let input =
                             super::instruction::AddChannelInput::deserialize_const(&input[1..])?;
 
@@ -313,7 +336,7 @@ impl Processor {
                             dweller,
                             server_administrator,
                             server,
-                            channel,
+                            server_channel,
                             &input,
                         )
                     }
