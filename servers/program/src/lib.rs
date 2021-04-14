@@ -4,14 +4,14 @@
 mod borsh;
 pub mod error;
 pub mod instruction;
+mod prelude;
 pub mod processor;
 #[cfg(test)]
 mod processor_tests;
+mod program;
 pub mod state;
 #[cfg(test)]
 mod test;
-mod program;
-mod prelude;
 
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;

@@ -1,7 +1,13 @@
 //! Program state processor
 
 use super::borsh::*;
-use crate::{borsh::{AccountWithBorsh, BorshSerializeConst}, error::Error, instruction::*, program::create_program_index, state::*};
+use crate::{
+    borsh::{AccountWithBorsh, BorshSerializeConst},
+    error::Error,
+    instruction::*,
+    program::create_index_with_seed,
+    state::*,
+};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
     program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
@@ -108,22 +114,14 @@ impl Processor {
 
         if server_state.version == StateVersion::Uninitialized {
             server_state.name = input.name.clone();
-            let server_member_key = Pubkey::create_program_address(
-                &[
-                    &server.key.to_bytes()[..32],
-                    &server_state.members.to_le_bytes()[..8],
-                    b"Server",
-                ],
-                program_id,
-            )?;
+            let server_member_key =
+                create_index_with_seed(program_id, b"Server", server.key, server_state.members)?;
 
-            let dweller_server_key = Pubkey::create_program_address(
-                &[
-                    &dweller_owner.key.to_bytes()[..32],
-                    &dweller_state.servers.to_le_bytes()[..8],
-                    b"Dweller",
-                ],
+            let dweller_server_key = create_index_with_seed(
                 program_id,
+                b"Dweller",
+                dweller_owner.key,
+                dweller_state.servers,
             )?;
 
             if *server_member.key == server_member_key && dweller_server_key == *dweller_server.key
@@ -182,30 +180,28 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let channel_key = Pubkey::create_program_address(
-                &[
-                    &server.key.to_bytes()[..32],
-                    &server_state.channels.to_le_bytes()[..8],
-                    b"Server",
-                ],
-                program_id,
-            )?;
+            let channel_key =
+                create_index_with_seed(program_id, b"Server", server.key, server_state.channels)?;
 
             if channel_key == *server_channel.key {
-                let server_administrator_state = server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
+                let server_administrator_state =
+                    server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
                 if server_administrator_state.dweller == *dweller.key {
-                    let administrator_member_key = Pubkey::create_program_address(
-                        &[
-                            &server.key.to_bytes()[..32],
-                            &server_administrator_state.index.to_le_bytes()[..8],
-                            b"Server",
-                        ],
+                    let administrator_member_key = create_index_with_seed(
                         program_id,
+                        b"Server",
+                        server.key,
+                        server_administrator_state.index,
                     )?;
                     if administrator_member_key == *server_administrator.key {
                         let mut channel_data = server_channel.try_borrow_mut_data()?;
                         let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
-                        let channel_member_key = create_program_index(program_id, b"Server", *server.key,  server_state.channels)?;
+                        let channel_member_key = create_index_with_seed(
+                            program_id,
+                            b"Server",
+                            server.key,
+                            server_state.channels,
+                        )?;
 
                         if channel_member_key == *server_channel.key {
                             channel_state.version = StateVersion::V1;
@@ -251,38 +247,28 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let group_key = Pubkey::create_program_address(
-                &[
-                    &server.key.to_bytes()[..32],
-                    &server_state.groups.to_le_bytes()[..8],
-                    b"Server",
-                ],
-                program_id,
-            )?;
+            let group_key =
+                create_index_with_seed(program_id, b"Server", server.key, server_state.groups)?;
 
             if group_key == *server_group.key {
                 let server_administrator_data = server_administrator.try_borrow_data()?;
                 let server_administrator_state =
                     ServerAdministrator::deserialize_const(&server_data)?;
                 if server_administrator_state.dweller == *dweller.key {
-                    let administrator_member_key = Pubkey::create_program_address(
-                        &[
-                            &server.key.to_bytes()[..32],
-                            &server_administrator_state.index.to_le_bytes()[..8],
-                            b"Server",
-                        ],
+                    let administrator_member_key = create_index_with_seed(
                         program_id,
+                        b"Server",
+                        server.key,
+                        server_administrator_state.index,
                     )?;
                     if administrator_member_key == *server_administrator.key {
                         let mut group_data = server_group.try_borrow_mut_data()?;
                         let mut group_state = ServerGroup::deserialize_const(&group_data)?;
-                        let channel_member_key = Pubkey::create_program_address(
-                            &[
-                                &server.key.to_bytes()[..32],
-                                &server_state.groups.to_le_bytes()[..8],
-                                b"Server",
-                            ],
+                        let channel_member_key = create_index_with_seed(
                             program_id,
+                            b"Server",
+                            server.key,
+                            server_state.groups,
                         )?;
 
                         if channel_member_key == *server_group.key {
@@ -327,13 +313,11 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let administrator_key = Pubkey::create_program_address(
-                &[
-                    &server.key.to_bytes()[..32],
-                    &server_state.administrators.to_le_bytes()[..8],
-                    b"Server",
-                ],
+            let administrator_key = create_index_with_seed(
                 program_id,
+                b"Server",
+                server.key,
+                server_state.administrators,
             )?;
 
             if administrator_key == *server_administrator.key {
@@ -376,26 +360,22 @@ impl Processor {
             let mut server_administrator_state =
                 server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
 
-            let administrator_key = Pubkey::create_program_address(
-                &[
-                    &server.key.to_bytes()[..32],
-                    &server_administrator_state.index.to_le_bytes()[..8],
-                    b"Server",
-                ],
+            let administrator_key = create_index_with_seed(
                 program_id,
+                b"Server",
+                server.key,
+                server_administrator_state.index,
             )?;
 
             if administrator_key == *server_administrator.key {
                 let mut server_data = server.try_borrow_mut_data()?;
                 let mut server_state = Server::deserialize_const(&server_data)?;
 
-                let member_status_key = Pubkey::create_program_address(
-                    &[
-                        &server.key.to_bytes()[..32],
-                        &server_state.member_statuses.to_le_bytes()[..8],
-                        b"Server",
-                    ],
+                let member_status_key = create_index_with_seed(
                     program_id,
+                    b"Server",
+                    server.key,
+                    server_state.member_statuses,
                 )?;
 
                 if member_status_key == *member_status.key {
