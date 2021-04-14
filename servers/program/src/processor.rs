@@ -44,9 +44,50 @@ impl Processor {
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
-            }    
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
         }
-        else {
+    }
+
+    fn set_dweller_photo<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &SetHashInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut data = dweller.try_borrow_mut_data()?;
+            let mut state = Dweller::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.photo_hash = input.hash.clone();
+                state.serialize_const(&mut data);
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
+    }
+
+    fn set_dweller_status<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &SetDwellerStatusInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut data = dweller.try_borrow_mut_data()?;
+            let mut state = Dweller::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.status = input.status.clone();
+                state.serialize_const(&mut data);
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
             Err(ProgramError::MissingRequiredSignature.into())
         }
     }
@@ -129,6 +170,59 @@ impl Processor {
         }
     }
 
+    fn add_channel<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_channel: &AccountInfo<'a>,
+        input: &AddChannelInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut server_data = server.try_borrow_mut_data()?;
+            let mut server_state = Server::deserialize_const(&server_data)?;
+
+            let channel_member_key = Pubkey::create_program_address(
+                &[
+                    &server.key.to_bytes()[..32],
+                    &server_state.channels.to_le_bytes()[..8],
+                    b"Server",
+                ],
+                program_id,
+            )?;
+
+            if channel_member_key == *server_channel.key {
+                let server_administrator_data = server_administrator.try_borrow_data()?;
+                let server_administrator_state =
+                    ServerAdministrator::deserialize_const(&server_data)?;
+                if server_administrator_state.dweller == *dweller.key {
+                    let administrator_member_key = Pubkey::create_program_address(
+                        &[
+                            &server.key.to_bytes()[..32],
+                            &server_administrator_state.index.to_le_bytes()[..8],
+                            b"Server",
+                        ],
+                        program_id,
+                    )?;
+                    if administrator_member_key == *server_administrator.key {
+                        let mut channel_data = server_channel.try_borrow_mut_data()?;
+                        let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
+
+                        Ok(())
+                    } else {
+                        Err(Error::InvalidDerivedAddress.into())
+                    }
+                } else {
+                    Err(Error::InvalidDerivedAddress.into())
+                }
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
     /// Processes an instruction
     pub fn process_instruction(
         program_id: &Pubkey,
@@ -174,19 +268,59 @@ impl Processor {
                 msg!("Instruction: SetDwellerName");
                 match accounts {
                     [dweller, ..] => {
-                        let input = super::instruction::SetNameInput::deserialize_const(
+                        let input =
+                            super::instruction::SetNameInput::deserialize_const(&input[1..])?;
+
+                        Self::set_dweller_name(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetDwellerPhoto => {
+                msg!("Instruction: SetDwellerPhoto");
+                match accounts {
+                    [dweller, ..] => {
+                        let input =
+                            super::instruction::SetHashInput::deserialize_const(&input[1..])?;
+
+                        Self::set_dweller_photo(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetDwellerStatus => {
+                msg!("Instruction: SetDwellerStatus");
+                match accounts {
+                    [dweller, ..] => {
+                        let input = super::instruction::SetDwellerStatusInput::deserialize_const(
                             &input[1..],
                         )?;
 
-                        Self::set_dweller_name(
+                        Self::set_dweller_status(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::AddChannel => {
+                msg!("Instruction: AddChannel");
+                match accounts {
+                    [dweller, server_administrator, server, channel, ..] => {
+                        let input =
+                            super::instruction::AddChannelInput::deserialize_const(&input[1..])?;
+
+                        Self::add_channel(
                             program_id,
-                            dweller,                            
+                            dweller,
+                            server_administrator,
+                            server,
+                            channel,
                             &input,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
+
             _ => todo!(),
         }
     }

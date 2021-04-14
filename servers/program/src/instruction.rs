@@ -24,7 +24,7 @@ pub enum Instruction {
     InitializeServer,
 
     /// Change dweller's display name
-    /// 
+    ///
     /// Accounts:
     /// - write, signer     dweller
     /// Input: [SetNameInput]
@@ -33,19 +33,28 @@ pub enum Instruction {
     /// Change dweller's display photo. Consider using PNG or JPEG photos for usability.
     /// Accounts:
     /// - signer, write   dweller
+    ///
     /// Input: [SetHashInput]
     SetDwellerPhoto,
 
     /// Update the users status
+    ///
     /// Accounts:
-    /// - signer  owner Dweller who ows account
+    /// - signer, write   dweller Dweller who ows account
+    ///
+    /// Input: [SetDwellerStatusInput]
     SetDwellerStatus,
 
-    /// - signer  admin
-    /// - write   channel
-    /// input:
-    /// - type_id u8
-    /// - name  [u8; 32]
+    /// Initialize channel and add it to server.
+    ///
+    /// Accounts:
+    /// - signer    dweller
+    /// - read      server_administrator with dweller
+    /// - write     server
+    /// - write     channel
+    ///
+    /// Input:
+    /// [AddChannelInput]
     AddChannel,
 
     /// - signer  admin
@@ -149,8 +158,21 @@ pub struct CreateGroupInput {
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct AddChannelInput {
+    pub type_id: u8,
+    pub name: [u8; 32],
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetNameInput {
     pub name: [u8; 32],
+}
+
+#[repr(C)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub struct SetDwellerStatusInput {
+    pub status: [u8; 32],
 }
 
 /// IPFS hash

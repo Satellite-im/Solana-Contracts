@@ -77,6 +77,9 @@ pub struct ServerAdministrator {
     pub version: StateVersion,
     pub server: Pubkey,
     pub dweller: Pubkey,
+
+    /// [Server::administrators] index used to derive address
+    pub index: u32,
 }
 
 #[repr(C)]
