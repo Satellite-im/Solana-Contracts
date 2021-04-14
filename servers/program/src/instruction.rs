@@ -67,10 +67,14 @@ pub enum Instruction {
     /// - write         group_channel_last
     DeleteChannel,
 
+    /// Initialize group and add to server.
+    ///
     /// Accounts:
-    /// - write  server
-    /// - signer admin
-    /// - write  group
+    /// - signer    dweller
+    /// - read      server_administrator with dweller
+    /// - write     server
+    /// - write     server_group
+    ///
     /// Input:
     /// - [CreateGroupInput]
     CreateGroup,
@@ -100,9 +104,11 @@ pub enum Instruction {
     RemoveChannelFromGroup,
 
     /// Accounts:
-    /// - signer    owner
+    /// 
+    /// - signer    owner of server
+    /// - read      dweller to become admin
     /// - write     server
-    /// - write     admin
+    /// - write     server_administrator
     AddAdmin,
 
     /// Accounts:
