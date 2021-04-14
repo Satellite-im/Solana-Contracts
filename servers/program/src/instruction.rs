@@ -57,11 +57,14 @@ pub enum Instruction {
     /// [AddChannelInput]
     AddChannel,
 
-    /// - signer  admin
-    /// - write   server
-    /// - write   channel
-    /// - write   what about channel group mapping account? reuse place holder with SOL? require more sol?
-    /// - write   channel_last
+    /// Accounts:
+    /// - signer        dweller 
+    /// - read          server_administrator
+    /// - write         server
+    /// - write         server_channel
+    /// - write         server_channel_last
+    /// - write         group_channel
+    /// - write         group_channel_last
     DeleteChannel,
 
     /// Accounts:

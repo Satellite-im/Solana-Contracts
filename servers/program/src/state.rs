@@ -27,7 +27,7 @@ pub struct Dweller {
     pub version: StateVersion,
 
     /// used to derive DwellerServer
-    pub servers: u64,
+    pub servers: u32,
 
     /// This is the display name of a dweller
     pub name: [u8; 32],
@@ -47,6 +47,8 @@ pub struct Dweller {
 pub struct DwellerServer {
     pub version: StateVersion,
     pub dweller: Pubkey,
+    /// [Dweller::servers] index used to derive address
+    pub index: u32,        
     pub server: Pubkey,
 }
 
@@ -59,6 +61,8 @@ pub struct DwellerServer {
 pub struct ServerMember {
     pub version: StateVersion,
     pub server: Pubkey,
+    /// [Server::members] index used to derive address
+    pub index: u64,        
     pub dweller: Pubkey,
 }
 
@@ -112,6 +116,8 @@ pub struct Server {
 pub struct ServerChannel {
     pub version: StateVersion,
     pub server: Pubkey,
+    /// [Server::channels] index used to derive address
+    pub index: u32,    
     pub type_id: u8,
     pub name: [u8; 32],
 }
@@ -121,7 +127,10 @@ pub struct ServerChannel {
 pub struct ServerGroup {
     pub version: StateVersion,
     pub server: Pubkey,
+    /// [Server::groups] index used to derive address
+    pub index: u32,
     pub name: [u8; 32],
+    
 }
 
 #[repr(C)]
@@ -129,6 +138,8 @@ pub struct ServerGroup {
 pub struct ServerGroupChannel {
     pub version: StateVersion,
     pub server: Pubkey,
+    /// [Server::group_channels] index used to derive address
+    pub index: u32,    
     pub group: Pubkey,
     pub channel: Pubkey,
 }
