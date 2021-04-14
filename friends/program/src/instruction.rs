@@ -231,8 +231,6 @@ pub fn remove_friend(
     friend_info_second: &Pubkey,
     friend_first: &Pubkey,
     friend_second: &Pubkey,
-    last_friend_of_first: &Pubkey,
-    last_friend_of_second: &Pubkey,
     user: &Pubkey,
 ) -> Result<Instruction, ProgramError> {
     let init_data = FriendsInstruction::RemoveFriend;
@@ -244,8 +242,6 @@ pub fn remove_friend(
         AccountMeta::new(*friend_info_second, false),
         AccountMeta::new(*friend_first, false),
         AccountMeta::new(*friend_second, false),
-        AccountMeta::new(*last_friend_of_first, false),
-        AccountMeta::new(*last_friend_of_second, false),
         AccountMeta::new_readonly(*user, true),
     ];
     Ok(Instruction {

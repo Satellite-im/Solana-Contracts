@@ -633,7 +633,8 @@ impl Processor {
             return Err(FriendsProgramError::WrongRequestData.into());
         }
 
-        if friend_info_from.user != *user_from_account_info.key || !user_from_account_info.is_signer {
+        if friend_info_from.user != *user_from_account_info.key || !user_from_account_info.is_signer
+        {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -671,13 +672,86 @@ impl Processor {
 
     /// Remove friend
     pub fn process_remove_friend_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let friend_info_first_account_info = next_account_info(account_info_iter)?;
+        let friend_info_second_account_info = next_account_info(account_info_iter)?;
+        let friend_first_account_info = next_account_info(account_info_iter)?;
+        let friend_second_account_info = next_account_info(account_info_iter)?;
+        let user_account_info = next_account_info(account_info_iter)?;
 
-        Ok(())
+        let mut friend_info_first =
+            FriendInfo::try_from_slice(&friend_info_first_account_info.data.borrow())?;
+        if !friend_info_first.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut friend_info_second =
+            FriendInfo::try_from_slice(&friend_info_second_account_info.data.borrow())?;
+        if !friend_info_second.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let generated_friend_first = Pubkey::create_program_address(
+            &[
+                &friend_info_first.user.to_bytes()[..32],
+                &friend_info_second.user.to_bytes()[..32],
+                Self::FRIEND_SEED,
+            ],
+            program_id,
+        )?;
+        if generated_friend_first != *friend_first_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let generated_friend_second = Pubkey::create_program_address(
+            &[
+                &friend_info_second.user.to_bytes()[..32],
+                &friend_info_first.user.to_bytes()[..32],
+                Self::FRIEND_SEED,
+            ],
+            program_id,
+        )?;
+        if generated_friend_second != *friend_second_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let friend_first = Friend::try_from_slice(&friend_first_account_info.data.borrow())?;
+        if !friend_first.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let friend_second = Friend::try_from_slice(&friend_second_account_info.data.borrow())?;
+        if !friend_second.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if *user_account_info.key != friend_info_first.user
+            || *user_account_info.key != friend_info_second.user
+            || !user_account_info.is_signer
+        {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Friend::default().serialize(&mut *friend_first_account_info.data.borrow_mut())?;
+        Friend::default().serialize(&mut *friend_second_account_info.data.borrow_mut())?;
+
+        friend_info_first.friends = friend_info_first
+            .friends
+            .checked_sub(1)
+            .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+
+        friend_info_second.friends = friend_info_second
+            .friends
+            .checked_sub(1)
+            .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+
+        friend_info_first.serialize(&mut *friend_info_first_account_info.data.borrow_mut())?;
+        friend_info_second
+            .serialize(&mut *friend_info_second_account_info.data.borrow_mut())
+            .map_err(|e| e.into())
     }
 
     /// Processes an instruction
