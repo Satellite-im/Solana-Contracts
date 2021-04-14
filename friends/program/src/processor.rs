@@ -565,13 +565,108 @@ impl Processor {
 
     /// Remove friend request
     pub fn process_remove_request_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let request_from_to_account_info = next_account_info(account_info_iter)?;
+        let request_to_from_account_info = next_account_info(account_info_iter)?;
+        let last_request_from_to_account_info = next_account_info(account_info_iter)?;
+        let last_request_to_from_account_info = next_account_info(account_info_iter)?;
+        let friend_info_from_account_info = next_account_info(account_info_iter)?;
+        let friend_info_to_account_info = next_account_info(account_info_iter)?;
+        let user_from_account_info = next_account_info(account_info_iter)?;
 
-        Ok(())
+        let mut request_from_to =
+            Request::try_from_slice(&request_from_to_account_info.data.borrow())?;
+        if !request_from_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut request_to_from =
+            Request::try_from_slice(&request_to_from_account_info.data.borrow())?;
+        if !request_to_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut last_request_from_to =
+            Request::try_from_slice(&last_request_from_to_account_info.data.borrow())?;
+        if !last_request_from_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut last_request_to_from =
+            Request::try_from_slice(&last_request_to_from_account_info.data.borrow())?;
+        if !last_request_to_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut friend_info_from =
+            FriendInfo::try_from_slice(&friend_info_from_account_info.data.borrow())?;
+        if !friend_info_from.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let mut friend_info_to =
+            FriendInfo::try_from_slice(&friend_info_to_account_info.data.borrow())?;
+        if !friend_info_to.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if request_from_to.from != friend_info_from.user
+            || request_from_to.to != friend_info_to.user
+        {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
+
+        if request_to_from.from != friend_info_from.user
+            || request_to_from.to != friend_info_to.user
+        {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
+
+        if last_request_from_to.from != friend_info_from.user {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
+
+        if last_request_to_from.to != friend_info_to.user {
+            return Err(FriendsProgramError::WrongRequestData.into());
+        }
+
+        if friend_info_from.user != *user_from_account_info.key || !user_from_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        Self::remove_request(
+            &mut request_from_to,
+            &request_from_to_account_info,
+            &mut request_to_from,
+            &request_to_from_account_info,
+            &mut last_request_from_to,
+            &last_request_from_to_account_info,
+            &mut last_request_to_from,
+            &last_request_to_from_account_info,
+            &friend_info_from,
+            &friend_info_to,
+            program_id,
+        )?;
+
+        friend_info_from.requests_outgoing =
+            friend_info_from
+                .requests_outgoing
+                .checked_sub(1)
+                .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+
+        friend_info_to.requests_incoming =
+            friend_info_to
+                .requests_incoming
+                .checked_sub(1)
+                .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+
+        friend_info_from.serialize(&mut *friend_info_from_account_info.data.borrow_mut())?;
+        friend_info_to
+            .serialize(&mut *friend_info_to_account_info.data.borrow_mut())
+            .map_err(|e| e.into())
     }
 
     /// Remove friend
