@@ -10,7 +10,7 @@ use crate::{
 };
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
-    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
+    program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
 };
 
 use super::prelude::*;
@@ -19,7 +19,7 @@ use super::prelude::*;
 pub struct Processor {}
 impl Processor {
     fn initialize_dweller<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         dweller: &AccountInfo<'a>,
         input: &InitializeDwellerInput,
     ) -> ProgramResult {
@@ -28,7 +28,7 @@ impl Processor {
         if state.version == StateVersion::Uninitialized {
             state.version = StateVersion::V1;
             state.name = input.name.clone();
-            state.serialize_const(&mut data);
+            state.serialize_const(&mut data)?;
             Ok(())
         } else {
             Err(ProgramError::AccountAlreadyInitialized)
@@ -36,7 +36,7 @@ impl Processor {
     }
 
     fn set_dweller_name<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         dweller: &AccountInfo<'a>,
         input: &SetNameInput,
     ) -> ProgramResult {
@@ -46,7 +46,7 @@ impl Processor {
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
                 state.name = input.name.clone();
-                state.serialize_const(&mut data);
+                state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
@@ -57,7 +57,7 @@ impl Processor {
     }
 
     fn set_dweller_photo<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         dweller: &AccountInfo<'a>,
         input: &SetHashInput,
     ) -> ProgramResult {
@@ -67,7 +67,7 @@ impl Processor {
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
                 state.photo_hash = input.hash.clone();
-                state.serialize_const(&mut data);
+                state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
@@ -78,7 +78,7 @@ impl Processor {
     }
 
     fn set_dweller_status<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         dweller: &AccountInfo<'a>,
         input: &SetDwellerStatusInput,
     ) -> ProgramResult {
@@ -88,7 +88,7 @@ impl Processor {
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
                 state.status = input.status.clone();
-                state.serialize_const(&mut data);
+                state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
@@ -130,7 +130,7 @@ impl Processor {
                 let mut server_member_state = ServerMember::deserialize_const(&server_member_data)?;
 
                 server_member_state.version = StateVersion::V1;
-                server_member_state.server = *server.key;
+                server_member_state.container = *server.key;
                 server_member_state.dweller = *dweller_owner.key;
                 server_state.owner = *dweller_owner.key;
 
@@ -140,19 +140,13 @@ impl Processor {
 
                 dweller_server_state.version = StateVersion::V1;
                 dweller_server_state.server = *server.key;
-                dweller_server_state.dweller = *dweller_owner.key;
+                dweller_server_state.container = *dweller_owner.key;
 
-                server_state.members = server_state
-                    .members
-                    .checked_add(1)
-                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+                server_state.members = server_state.members.error_increment()?;
 
                 server_state.name = input.name.clone();
 
-                dweller_state.servers = dweller_state
-                    .servers
-                    .checked_add(1)
-                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+                dweller_state.servers = dweller_state.servers.error_increment()?;
 
                 dweller_state.serialize_const(&mut dweller_data)?;
                 server_state.serialize_const(&mut server_data)?;
@@ -205,13 +199,9 @@ impl Processor {
 
                         if channel_member_key == *server_channel.key {
                             channel_state.version = StateVersion::V1;
-                            channel_state.server = *server.key;
+                            channel_state.container = *server.key;
                             channel_state.name = input.name.clone();
-                            server_state.channels =
-                                server_state
-                                    .channels
-                                    .checked_add(1)
-                                    .ok_or::<ProgramError>(Error::Overflow.into())?;
+                            server_state.channels = server_state.channels.error_increment()?;
 
                             channel_state.index = server_state.groups;
                             channel_state.serialize_const(&mut channel_data)?;
@@ -251,9 +241,8 @@ impl Processor {
                 create_index_with_seed(program_id, b"Server", server.key, server_state.groups)?;
 
             if group_key == *server_group.key {
-                let server_administrator_data = server_administrator.try_borrow_data()?;
-                let server_administrator_state =
-                    ServerAdministrator::deserialize_const(&server_data)?;
+                let server_administrator_state: ServerAdministrator =
+                    server_administrator.read_data_with_borsh()?;
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = create_index_with_seed(
                         program_id,
@@ -272,13 +261,10 @@ impl Processor {
                         )?;
 
                         if channel_member_key == *server_group.key {
-                            group_state.server = *server.key;
+                            group_state.container = *server.key;
                             group_state.name = input.name.clone();
                             group_state.version = StateVersion::V1;
-                            server_state.groups = server_state
-                                .groups
-                                .checked_add(1)
-                                .ok_or::<ProgramError>(Error::Overflow.into())?;
+                            server_state.groups = server_state.groups.error_increment()?;
 
                             group_state.index = server_state.groups;
                             group_state.serialize_const(&mut group_data)?;
@@ -325,12 +311,9 @@ impl Processor {
                 let mut server_administrator_state =
                     ServerAdministrator::deserialize_const(&server_administrator_data)?;
                 if server_administrator_state.dweller == *dweller.key {
-                    server_administrator_state.server = *server.key;
+                    server_administrator_state.container = *server.key;
                     server_administrator_state.version = StateVersion::V1;
-                    server_state.administrators = server_state
-                        .administrators
-                        .checked_add(1)
-                        .ok_or::<ProgramError>(Error::Overflow.into())?;
+                    server_state.administrators = server_state.administrators.error_increment()?;
 
                     server_administrator_state.index = server_state.administrators;
                     server_administrator_state.serialize_const(&mut server_administrator_data)?;
@@ -357,7 +340,7 @@ impl Processor {
         member_status: &AccountInfo<'a>,
     ) -> ProgramResult {
         if dweller_admin.is_signer {
-            let mut server_administrator_state =
+            let server_administrator_state =
                 server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
 
             let administrator_key = create_index_with_seed(
@@ -379,18 +362,16 @@ impl Processor {
                 )?;
 
                 if member_status_key == *member_status.key {
-                    let mut member_status_data = member_status.try_borrow_mut_data()?;
+                    let member_status_data = member_status.try_borrow_mut_data()?;
                     let mut member_status_state =
                         ServerMemberStatus::deserialize_const(&member_status_data)?;
 
-                    member_status_state.server = *server.key;
+                    member_status_state.container = *server.key;
                     member_status_state.version = StateVersion::V1;
                     member_status_state.dweller = *dweller.key;
                     member_status_state.invited = true;
-                    server_state.member_statuses = server_state
-                        .member_statuses
-                        .checked_add(1)
-                        .ok_or::<ProgramError>(Error::Overflow.into())?;
+                    server_state.member_statuses =
+                        server_state.member_statuses.error_increment()?;
 
                     member_status_state.index = server_state.member_statuses;
 

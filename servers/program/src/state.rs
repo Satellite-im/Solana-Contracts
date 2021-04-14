@@ -46,7 +46,8 @@ pub struct Dweller {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct DwellerServer {
     pub version: StateVersion,
-    pub dweller: Pubkey,
+    /// dweller
+    pub container: Pubkey,
     /// [Dweller::servers] index used to derive address
     pub index: u64,
     pub server: Pubkey,
@@ -60,7 +61,8 @@ pub struct DwellerServer {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerMember {
     pub version: StateVersion,
-    pub server: Pubkey,
+    /// server
+    pub container: Pubkey,
     /// [Server::members] index used to derive address
     pub index: u64,
     pub dweller: Pubkey,
@@ -71,9 +73,10 @@ pub struct ServerMember {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerMemberStatus {
     pub version: StateVersion,
-    pub server: Pubkey,
-    pub dweller: Pubkey,
+    /// server
+    pub container: Pubkey,
     pub index: u64,
+    pub dweller: Pubkey,
     pub invited: bool,
 }
 
@@ -81,11 +84,11 @@ pub struct ServerMemberStatus {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerAdministrator {
     pub version: StateVersion,
-    pub server: Pubkey,
-    pub dweller: Pubkey,
-
+    /// server
+    pub container: Pubkey,
     /// [Server::administrators] index used to derive address
     pub index: u64,
+    pub dweller: Pubkey,
 }
 
 #[repr(C)]
@@ -118,7 +121,9 @@ pub struct Server {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerChannel {
     pub version: StateVersion,
-    pub server: Pubkey,
+
+    /// server
+    pub container: Pubkey,
     /// [Server::channels] index used to derive address
     pub index: u64,
     pub type_id: u8,
@@ -129,7 +134,8 @@ pub struct ServerChannel {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroup {
     pub version: StateVersion,
-    pub server: Pubkey,
+    /// server
+    pub container: Pubkey,
     /// [Server::groups] index used to derive address
     pub index: u64,
     pub name: [u8; 32],
@@ -139,7 +145,7 @@ pub struct ServerGroup {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroupChannel {
     pub version: StateVersion,
-    pub server: Pubkey,
+    pub container: Pubkey,
     /// [Server::group_channels] index used to derive address
     pub index: u64,
     pub group: Pubkey,
