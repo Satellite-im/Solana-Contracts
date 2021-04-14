@@ -9,22 +9,24 @@ use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubk
 pub enum Instruction {
     /// [initialize_dweller]
     /// accounts
-    /// - signer, write dweller
+    /// - signer, write     dweller
     ///
     /// Input:
     ///  [InitializeDwellerInput]
     InitializeDweller,
 
     /// accounts
-    /// - signer, write     owner     must be dweller
+    /// - signer, write     dweller_owner  will join server during init
     /// - signer, write     server
-    ///
+    /// - write             dweller_server
+    /// - write             server_member
     /// Input: [InitializeServerInput]
     InitializeServer,
 
     /// Change dweller's display name
+    /// 
     /// Accounts:
-    /// - write   dweller
+    /// - write, signer     dweller
     /// Input: [SetNameInput]
     SetDwellerName,
 

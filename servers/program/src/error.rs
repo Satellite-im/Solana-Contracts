@@ -11,6 +11,12 @@ use solana_program::{
 pub enum Error {
     #[error("Only owner can add remove admins")]
     OnlyOwnerCanAddRemoveAdmins,
+
+    #[error("Overflow")]
+    Overflow,
+
+    #[error("Invalid derived address")]
+    InvalidDerivedAddress,
 }
 
 impl From<Error> for ProgramError {

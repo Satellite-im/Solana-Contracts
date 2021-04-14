@@ -27,7 +27,7 @@ pub struct Dweller {
     pub version: StateVersion,
 
     /// used to derive DwellerServer
-    pub servers: u8,
+    pub servers: u64,
 
     /// This is the display name of a dweller
     pub name: [u8; 32],
@@ -52,7 +52,7 @@ pub struct DwellerServer {
 
 /// Server members whom have joined
 /// Has program derived address from Server
-/// many to many map of `DwellerID` to `Server` (inverse of `DwellerServer`)
+/// many to many map of `Server` to `DwellerID` (inverse of `DwellerServer`)
 /// Payed by dweller.
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
