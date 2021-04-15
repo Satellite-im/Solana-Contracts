@@ -12,7 +12,7 @@ use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
+    program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     system_instruction,
@@ -219,6 +219,31 @@ impl Processor {
         friend_info_to
             .serialize(&mut *friend_info_to_account_info.data.borrow_mut())
             .map_err(|e| e.into())
+    }
+
+    fn create_account<'a>(
+        funder: AccountInfo<'a>,
+        account_to_create: AccountInfo<'a>,
+        base: AccountInfo<'a>,
+        seed: &str,
+        required_lamports: u64,
+        space: u64,
+        owner: &Pubkey,
+        signer_seeds: &[&[u8]],
+    ) -> ProgramResult {
+        invoke_signed(
+            &system_instruction::create_account_with_seed(
+                &funder.key,
+                &account_to_create.key,
+                &base.key,
+                seed,
+                required_lamports,
+                space,
+                owner,
+            ),
+            &[funder.clone(), account_to_create.clone(), base.clone()],
+            &[&signer_seeds],
+        )
     }
 
     /// Initialize the friend info
@@ -457,7 +482,7 @@ impl Processor {
 
         let mut friend_to = Friend::try_from_slice(&friend_to_account_info.data.borrow())?;
         if friend_to.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+            return Err(FriendsProgramError::AlreadyFriends.into());
         }
 
         if !rent.is_exempt(
@@ -469,7 +494,7 @@ impl Processor {
 
         let mut friend_from = Friend::try_from_slice(&friend_from_account_info.data.borrow())?;
         if friend_from.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+            return Err(FriendsProgramError::AlreadyFriends.into());
         }
 
         if !rent.is_exempt(
@@ -699,31 +724,6 @@ impl Processor {
         friend_info_second
             .serialize(&mut *friend_info_second_account_info.data.borrow_mut())
             .map_err(|e| e.into())
-    }
-
-    fn create_account<'a>(
-        funder: AccountInfo<'a>,
-        account_to_create: AccountInfo<'a>,
-        base: AccountInfo<'a>,
-        seed: &str,
-        required_lamports: u64,
-        space: u64,
-        owner: &Pubkey,
-        signer_seeds: &[&[u8]],
-    ) -> ProgramResult {
-        invoke_signed(
-            &system_instruction::create_account_with_seed(
-                &funder.key,
-                &account_to_create.key,
-                &base.key,
-                seed,
-                required_lamports,
-                space,
-                owner,
-            ),
-            &[funder.clone(), account_to_create.clone(), base.clone()],
-            &[&signer_seeds],
-        )
     }
 
     /// Create derived address

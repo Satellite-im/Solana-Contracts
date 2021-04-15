@@ -1,8 +1,8 @@
 #![cfg(feature = "test-bpf")]
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use sattelite_friends::*;
-use solana_program::{pubkey::Pubkey, system_instruction};
+use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
 use solana_sdk::{
     account::Account,
@@ -252,7 +252,6 @@ pub async fn remove_friend(
 #[tokio::test]
 async fn test_init_friend_info() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user = Keypair::new();
     let (base, _) = Pubkey::find_program_address(&[&user.pubkey().to_bytes()[..32]], &id());
@@ -284,7 +283,6 @@ async fn test_init_friend_info() {
 #[tokio::test]
 async fn test_create_address() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user = Keypair::new();
     let (base_program_address, _) =
@@ -398,7 +396,6 @@ async fn test_create_address() {
 #[tokio::test]
 async fn test_make_friend_request() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user_from = Keypair::new();
     let (base_user_from, _) =
@@ -416,8 +413,6 @@ async fn test_make_friend_request() {
     let user_info_to_key =
         Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
             .unwrap();
-
-    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
 
     // Create account for user who wants to send friend request
     create_account(
@@ -452,8 +447,6 @@ async fn test_make_friend_request() {
     let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
     let friend_info_to =
         state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
-
-    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
 
     // Create request from account
     let (request_from_base, _) =
@@ -558,7 +551,6 @@ async fn test_make_friend_request() {
 #[tokio::test]
 async fn test_accept_friend_request() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user_from = Keypair::new();
     let (base_user_from, _) =
@@ -576,8 +568,6 @@ async fn test_accept_friend_request() {
     let user_info_to_key =
         Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
             .unwrap();
-
-    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
 
     // Create account for user who wants to send friend request
     create_account(
@@ -612,8 +602,6 @@ async fn test_accept_friend_request() {
     let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
     let friend_info_to =
         state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
-
-    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
 
     // Create request from account
     let (request_from_base, _) =
@@ -790,7 +778,6 @@ async fn test_accept_friend_request() {
 #[tokio::test]
 async fn test_deny_friend_request() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user_from = Keypair::new();
     let (base_user_from, _) =
@@ -808,8 +795,6 @@ async fn test_deny_friend_request() {
     let user_info_to_key =
         Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
             .unwrap();
-
-    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
 
     // Create account for user who wants to send friend request
     create_account(
@@ -844,8 +829,6 @@ async fn test_deny_friend_request() {
     let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
     let friend_info_to =
         state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
-
-    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
 
     // Create request from account
     let (request_from_base, _) =
@@ -963,7 +946,6 @@ async fn test_deny_friend_request() {
 #[tokio::test]
 async fn test_remove_friend_request() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user_from = Keypair::new();
     let (base_user_from, _) =
@@ -981,8 +963,6 @@ async fn test_remove_friend_request() {
     let user_info_to_key =
         Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
             .unwrap();
-
-    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
 
     // Create account for user who wants to send friend request
     create_account(
@@ -1017,8 +997,6 @@ async fn test_remove_friend_request() {
     let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
     let friend_info_to =
         state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
-
-    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
 
     // Create request from account
     let (request_from_base, _) =
@@ -1132,7 +1110,6 @@ async fn test_remove_friend_request() {
 #[tokio::test]
 async fn test_remove_friend() {
     let mut program_context = program_test().start_with_context().await;
-    let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user_from = Keypair::new();
     let (base_user_from, _) =
@@ -1150,8 +1127,6 @@ async fn test_remove_friend() {
     let user_info_to_key =
         Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
             .unwrap();
-
-    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
 
     // Create account for user who wants to send friend request
     create_account(
@@ -1186,8 +1161,6 @@ async fn test_remove_friend() {
     let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
     let friend_info_to =
         state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
-
-    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
 
     // Create request from account
     let (request_from_base, _) =
