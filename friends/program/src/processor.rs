@@ -676,7 +676,7 @@ impl Processor {
         }
 
         if *user_account_info.key != friend_info_first.user
-            || *user_account_info.key != friend_info_second.user
+            && *user_account_info.key != friend_info_second.user
             || !user_account_info.is_signer
         {
             return Err(ProgramError::MissingRequiredSignature);
