@@ -28,39 +28,6 @@ pub async fn get_account(program_context: &mut ProgramTestContext, pubkey: &Pubk
         .expect("account empty")
 }
 
-pub async fn create_account1(
-    program_context: &mut ProgramTestContext,
-    account: &Pubkey,
-    base: &Keypair,
-    seed: &str,
-    rent: u64,
-    space: u64,
-    owner: &Pubkey,
-) -> Result<(), TransportError> {
-    let mut transaction = Transaction::new_with_payer(
-        &[system_instruction::create_account_with_seed(
-            &program_context.payer.pubkey(),
-            account,
-            &base.pubkey(),
-            seed,
-            rent,
-            space,
-            owner,
-        )],
-        Some(&program_context.payer.pubkey()),
-    );
-
-    transaction.sign(
-        &[&program_context.payer, base],
-        program_context.last_blockhash,
-    );
-    program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await?;
-    Ok(())
-}
-
 pub async fn create_account(
     program_context: &mut ProgramTestContext,
     user_address: &Pubkey,
@@ -114,22 +81,16 @@ async fn test_init_friend_info() {
     let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user = Keypair::new();
-    let generated_key = Pubkey::create_with_seed(
-        &user.pubkey(),
-        processor::Processor::FRIEND_INFO_SEED,
-        &id(),
-    )
-    .unwrap();
+    let (base, _) = Pubkey::find_program_address(&[&user.pubkey().to_bytes()[..32]], &id());
+    let generated_key =
+        Pubkey::create_with_seed(&base, processor::Processor::FRIEND_INFO_SEED, &id()).unwrap();
 
-    let account_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
-    create_account1(
+    create_account(
         &mut program_context,
+        &user.pubkey(),
+        &base,
         &generated_key,
-        &user,
-        processor::Processor::FRIEND_INFO_SEED,
-        account_min_rent,
-        state::FriendInfo::LEN as u64,
-        &id(),
+        instruction::AddressType::FriendInfo,
     )
     .await
     .unwrap();
@@ -152,7 +113,7 @@ async fn test_create_address() {
     let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user = Keypair::new();
-    let (base_program_address, bump_seed) =
+    let (base_program_address, _) =
         Pubkey::find_program_address(&[&user.pubkey().to_bytes()[..32]], &id());
     let address_to_create = Pubkey::create_with_seed(
         &base_program_address,
@@ -179,7 +140,11 @@ async fn test_create_address() {
 
     let outgoing_req_to_create = Pubkey::create_with_seed(
         &base_program_address,
-        &format!("{:?}{:?}", request_index, processor::Processor::OUTGOING_REQUEST),
+        &format!(
+            "{:?}{:?}",
+            request_index,
+            processor::Processor::OUTGOING_REQUEST
+        ),
         &id(),
     )
     .unwrap();
@@ -199,11 +164,15 @@ async fn test_create_address() {
     assert_eq!(outgoing_req_info_data.data.len(), state::Request::LEN);
 
     let user_to = Keypair::new();
-    let (base_program_address, bump_seed) =
+    let (base_program_address, _) =
         Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32]], &id());
     let incoming_req_to_create = Pubkey::create_with_seed(
         &base_program_address,
-        &format!("{:?}{:?}", request_index, processor::Processor::INCOMING_REQUEST),
+        &format!(
+            "{:?}{:?}",
+            request_index,
+            processor::Processor::INCOMING_REQUEST
+        ),
         &id(),
     )
     .unwrap();
@@ -222,8 +191,13 @@ async fn test_create_address() {
 
     assert_eq!(incoming_req_info_data.data.len(), state::Request::LEN);
 
-    let (base_program_address, bump_seed) =
-        Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32], &user.pubkey().to_bytes()[..32]], &id());
+    let (base_program_address, _) = Pubkey::find_program_address(
+        &[
+            &user_to.pubkey().to_bytes()[..32],
+            &user.pubkey().to_bytes()[..32],
+        ],
+        &id(),
+    );
 
     let friend_acc_to_create = Pubkey::create_with_seed(
         &base_program_address,
