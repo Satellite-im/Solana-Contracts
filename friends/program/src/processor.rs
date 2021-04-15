@@ -2,6 +2,7 @@
 
 use crate::{
     error::FriendsProgramError,
+    instruction::AddressType,
     instruction::FriendsInstruction,
     state::{Friend, FriendInfo, Request},
 };
@@ -11,8 +12,10 @@ use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     msg,
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
+    system_instruction,
     sysvar::{rent::Rent, Sysvar},
 };
 use std::mem;
@@ -673,6 +676,78 @@ impl Processor {
             .map_err(|e| e.into())
     }
 
+    fn create_account<'a>(
+        funder: AccountInfo<'a>,
+        account_to_create: AccountInfo<'a>,
+        base: AccountInfo<'a>,
+        seed: &str,
+        required_lamports: u64,
+        space: u64,
+        owner: &Pubkey,
+        signer_seeds: &[&[u8]],
+    ) -> ProgramResult {
+        invoke_signed(
+            &system_instruction::create_account_with_seed(
+                &funder.key,
+                &account_to_create.key,
+                &base.key,
+                seed,
+                required_lamports,
+                space,
+                owner,
+            ),
+            &[funder.clone(), account_to_create.clone(), base.clone()],
+            &[&signer_seeds],
+        )
+    }
+
+    /// Create derived address
+    pub fn process_create_address_instruction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        address_type: AddressType,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let payer_account_info = next_account_info(account_info_iter)?;
+        let user_account_info = next_account_info(account_info_iter)?;
+        let base_account_info = next_account_info(account_info_iter)?;
+        let account_to_create_info = next_account_info(account_info_iter)?;
+        let rent_account_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_account_info)?;
+        let _system_program = next_account_info(account_info_iter)?;
+
+        match address_type {
+            AddressType::FriendInfo => {
+                let (program_address, bump_seed) = Pubkey::find_program_address(
+                    &[&user_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                // TODO: check that program_address the same as base_account_info
+                let address_to_create =
+                    Pubkey::create_with_seed(&program_address, Self::FRIEND_INFO_SEED, program_id)?;
+                // TODO: check that address_to_create the same as account_to_create_info
+                let signature = &[&user_account_info.key.to_bytes()[..32], &[bump_seed]];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_info.clone(),
+                    base_account_info.clone(),
+                    Self::FRIEND_INFO_SEED,
+                    rent.minimum_balance(FriendInfo::LEN),
+                    FriendInfo::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
+            }
+            AddressType::Request(index) => {
+                unimplemented!();
+            }
+            AddressType::Friend(friend_key) => {
+                unimplemented!();
+            }
+        }
+        Ok(())
+    }
+
     /// Processes an instruction
     pub fn process_instruction(
         program_id: &Pubkey,
@@ -706,6 +781,10 @@ impl Processor {
             FriendsInstruction::RemoveFriend => {
                 msg!("Instruction: RemoveFriend");
                 Self::process_remove_friend_instruction(program_id, accounts)
+            }
+            FriendsInstruction::CreateAccount(address_type) => {
+                msg!("Instruction: CreateAccount");
+                Self::process_create_address_instruction(program_id, accounts, address_type)
             }
         }
     }

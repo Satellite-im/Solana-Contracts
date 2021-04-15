@@ -6,7 +6,19 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar,
+    system_program,
 };
+
+/// Address type
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
+pub enum AddressType {
+    /// FriendInfo
+    FriendInfo,
+    /// Request with index
+    Request(u64),
+    /// Friend
+    Friend(Pubkey),
+}
 
 /// Instruction definition
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
@@ -72,6 +84,37 @@ pub enum FriendsInstruction {
     ///   5. `[w]` Last friend account of account with which wants break friendship
     ///   6. `[rs]` User account which initiate break friendship
     RemoveFriend,
+
+    /// Create derived account
+    CreateAccount(AddressType),
+}
+
+/// Create `CreateAccount` instruction
+pub fn create_account(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    user_address: &Pubkey,
+    base_address: &Pubkey,
+    account_to_create: &Pubkey,
+    address_type: AddressType,
+) -> Result<Instruction, ProgramError> {
+    let init_data = FriendsInstruction::CreateAccount(address_type);
+    let data = init_data
+        .try_to_vec()
+        .or(Err(ProgramError::InvalidArgument))?;
+    let accounts = vec![
+        AccountMeta::new(*payer, true),
+        AccountMeta::new_readonly(*user_address, false),
+        AccountMeta::new_readonly(*base_address, false),
+        AccountMeta::new(*account_to_create, false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(system_program::id(), false),
+    ];
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
 }
 
 /// Create `InitFriendInfo` instruction

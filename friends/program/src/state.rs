@@ -39,6 +39,9 @@ pub struct Friend {
 }
 
 impl FriendInfo {
+    /// Data len
+    pub const LEN: usize = 56;
+
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {
         *self != FriendInfo::default()
@@ -46,6 +49,9 @@ impl FriendInfo {
 }
 
 impl Request {
+    /// Data len
+    pub const LEN: usize = 64;
+
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {
         *self != Request::default()
@@ -53,6 +59,9 @@ impl Request {
 }
 
 impl Friend {
+    /// Data len
+    pub const LEN: usize = 128;
+
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {
         *self != Friend::default()
