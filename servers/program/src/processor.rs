@@ -390,6 +390,54 @@ impl Processor {
         }
     }
 
+    /// Create derived address
+    pub fn create_derived_address<'a>(
+        program_id: &Pubkey,
+        payer_account_info: &AccountInfo<'a>,
+        owner_account_info: &AccountInfo<'a>,
+        base_account_info: &AccountInfo<'a>,
+        account_to_create_info: &AccountInfo<'a>,
+        rent_account_info: &AccountInfo<'a>,        
+        _system_program: &AccountInfo<'a>,
+        input: &AddressTypeInput,
+    ) -> ProgramResult {
+        let rent = &Rent::from_account_info(rent_account_info)?;        
+        match input {
+            AddressTypeInput::DwellerServer(index) => {
+                msg!("dw");
+                let (program_address, bump_seed) = Pubkey::find_program_address(
+                    &[&owner_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                if program_address != *base_account_info.key {
+                    return Err(ProgramError::InvalidAccountData);
+                }
+
+                let address_to_create =
+                    Pubkey::create_with_seed(&program_address, "DwellerServer", program_id)?;
+                
+                if address_to_create != *account_to_create_info.key {
+                    return Err(ProgramError::InvalidAccountData);
+                }                    
+                let signature = &[&owner_account_info.key.to_bytes()[..32], &[bump_seed]];
+                msg!("DSAAD");
+                crate::program::create_derived_account(
+                    payer_account_info.clone(),
+                    account_to_create_info.clone(),
+                    base_account_info.clone(),
+                    "DwellerServer",
+                    rent.minimum_balance(DwellerServer::LEN as usize),
+                    DwellerServer::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
+                msg!("adsasdasd");
+            }
+            _ => todo!()
+        }
+        Ok(())
+    }
+
     /// Processes an instruction
     pub fn process_instruction(
         program_id: &Pubkey,
@@ -398,6 +446,32 @@ impl Processor {
     ) -> ProgramResult {
         let instruction = Instruction::try_from_slice(&input[0..1])?;
         match instruction {
+            Instruction::CreateDerivedAccount => {
+                msg!("Instruction: CreateDerivedAccount");
+                match accounts {
+                    [payer_account_info,
+                    owner_account_info,
+                    base_account_info,
+                    account_to_create_info,
+                    rent_account_info,        
+                    system_program, ..] => {
+                        msg!("Got");
+                        let input = super::instruction::AddressTypeInput::deserialize_const(
+                            &input[1..],
+                        )?;
+                        msg!("Akk");
+                        Self::create_derived_address(program_id,
+                            payer_account_info,
+                            owner_account_info,
+                            base_account_info,
+                            account_to_create_info,
+                            rent_account_info,        
+                            system_program,                                               
+                             &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            },
             Instruction::InitializeDweller => {
                 msg!("Instruction: InitializeDweller");
                 match accounts {

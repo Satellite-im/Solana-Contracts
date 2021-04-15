@@ -12,9 +12,6 @@ mod processor_tests;
 mod program;
 pub mod state;
 
-#[cfg(test)]
-mod test;
-
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 

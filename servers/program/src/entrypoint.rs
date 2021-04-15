@@ -17,7 +17,7 @@ fn process_instruction(
     if let Err(error) =
         processor::Processor::process_instruction(program_id, accounts, instruction_data)
     {
-        error.print::<PoolError>();
+        error.print::<Error>();
         return Err(error);
     }
     Ok(())

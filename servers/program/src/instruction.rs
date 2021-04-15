@@ -2,11 +2,17 @@
 
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_derive::ToPrimitive;
-use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar};
 
 /// Instructions
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
+
+    /// Create derived account
+    ///
+    /// Input: [AddressTypeInput]
+    CreateDerivedAccount,
+
     /// [initialize_dweller]
     /// accounts
     /// - signer, write     dweller
@@ -163,6 +169,17 @@ pub enum Instruction {
     SetServerDb,
 }
 
+/// Address type
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+pub enum AddressTypeInput {
+    DwellerServer(u64),
+    ServerStatusMember(u64),
+    ServerMember(u64),
+    ServerChannel(u64),
+    ServerGroup(u64),
+    ServerGroupChannel(u64),    
+}
+
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct CreateGroupInput {
@@ -217,6 +234,59 @@ pub fn initialize_dweller(
     let mut input = input.try_to_vec()?;
     data.append(&mut input);
     let accounts = vec![AccountMeta::new(*dweller, true)];
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
+
+/// Create [Instruction::CreateDerivedAccount] instruction
+pub fn create_derived_account(
+    program_id: &Pubkey,
+    payer: &Pubkey,
+    owner_address: &Pubkey,
+    base_program_address: &Pubkey,
+    account_to_create: &Pubkey,
+    input: AddressTypeInput,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let mut data = Instruction::CreateDerivedAccount.try_to_vec()?;
+    let mut input = input.try_to_vec()?;
+    data.append(&mut input);
+    let accounts = vec![
+        AccountMeta::new(*payer, true),
+        AccountMeta::new_readonly(*owner_address, false),
+        AccountMeta::new_readonly(*base_program_address, false),
+        AccountMeta::new(*account_to_create, false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(system_program::id(), false),
+    ];
+    Ok(solana_program::instruction::Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// [Instruction::InitializeServer]
+#[allow(clippy::too_many_arguments)]
+pub fn initialize_server(
+    dweller_owner: &Pubkey,
+    server: &Pubkey,
+    dweller_server: &Pubkey,
+    server_member: &Pubkey,
+    input: InitializeServerInput,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let mut data = Instruction::InitializeServer.try_to_vec()?;
+    let mut input = input.try_to_vec()?;
+    data.append(&mut input);
+    let accounts = vec![
+        AccountMeta::new(*dweller_owner, true),
+        AccountMeta::new(*server, true),
+        AccountMeta::new(*dweller_server, false),
+        AccountMeta::new(*server_member, false),
+        ];
+
     Ok(solana_program::instruction::Instruction {
         program_id: crate::id(),
         accounts,

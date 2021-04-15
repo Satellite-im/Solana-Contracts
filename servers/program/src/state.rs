@@ -40,6 +40,10 @@ pub struct Dweller {
     pub status: [u8; 32],
 }
 
+impl Dweller {
+    pub const LEN:  u64 = 300;
+}
+
 /// Mapping of `Dweller` to `Server`.
 /// Account address is be derived from `Dweller`
 #[repr(C)]
@@ -51,6 +55,10 @@ pub struct DwellerServer {
     /// [Dweller::servers] index used to derive address
     pub index: u64,
     pub server: Pubkey,
+}
+
+impl DwellerServer {
+    pub const LEN:  u64 = 300;
 }
 
 /// Server members whom have joined

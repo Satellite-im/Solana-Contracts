@@ -1,5 +1,5 @@
 [workspace]
 members = [
   "servers/program",
-  "friends/program"
+  "friends/program",
 ]
