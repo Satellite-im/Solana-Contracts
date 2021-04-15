@@ -148,6 +148,40 @@ pub async fn accept_friend_request(
     Ok(())
 }
 
+pub async fn deny_friend_request(
+    program_context: &mut ProgramTestContext,
+    request_from_to: &Pubkey,
+    request_to_from: &Pubkey,
+    last_request_from: &Pubkey,
+    last_request_to: &Pubkey,
+    friend_info_from: &Pubkey,
+    friend_info_to: &Pubkey,
+    user_to: &Keypair,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::deny_request(
+            &id(),
+            request_from_to,
+            request_to_from,
+            last_request_from,
+            last_request_to,
+            friend_info_from,
+            friend_info_to,
+            &user_to.pubkey(),
+        ).unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, user_to],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn test_init_friend_info() {
     let mut program_context = program_test().start_with_context().await;
@@ -610,7 +644,7 @@ async fn test_accept_friend_request() {
     let friend_from_info_data = get_account(&mut program_context, &friend_from_key).await;
     let friend_from_info =
         state::Friend::try_from_slice(&friend_from_info_data.data.as_slice()).unwrap();
-    
+
     assert!(friend_from_info.is_initialized());
     assert_eq!(friend_from_info.user, user_from.pubkey());
     assert_eq!(friend_from_info.friend, user_to.pubkey());
@@ -620,10 +654,152 @@ async fn test_accept_friend_request() {
     let friend_to_info_data = get_account(&mut program_context, &friend_to_key).await;
     let friend_to_info =
         state::Friend::try_from_slice(&friend_to_info_data.data.as_slice()).unwrap();
-    
+
     assert!(friend_to_info.is_initialized());
     assert_eq!(friend_to_info.user, user_to.pubkey());
     assert_eq!(friend_to_info.friend, user_from.pubkey());
     assert_eq!(friend_to_info.thread_id1, conv_thread);
     assert_eq!(friend_to_info.thread_id2, conv_thread);
+}
+
+#[tokio::test]
+async fn test_deny_friend_request() {
+    let mut program_context = program_test().start_with_context().await;
+    let rent = program_context.banks_client.get_rent().await.unwrap();
+
+    let user_from = Keypair::new();
+    let (base_user_from, _) =
+        Pubkey::find_program_address(&[&user_from.pubkey().to_bytes()[..32]], &id());
+    let user_info_from_key = Pubkey::create_with_seed(
+        &base_user_from,
+        processor::Processor::FRIEND_INFO_SEED,
+        &id(),
+    )
+    .unwrap();
+
+    let user_to = Keypair::new();
+    let (base_user_to, _) =
+        Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32]], &id());
+    let user_info_to_key =
+        Pubkey::create_with_seed(&base_user_to, processor::Processor::FRIEND_INFO_SEED, &id())
+            .unwrap();
+
+    let friend_info_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
+
+    // Create account for user who wants to send friend request
+    create_account(
+        &mut program_context,
+        &user_from.pubkey(),
+        &base_user_from,
+        &user_info_from_key,
+        instruction::AddressType::FriendInfo,
+    )
+    .await
+    .unwrap();
+    create_friend_info(&mut program_context, &user_info_from_key, &user_from)
+        .await
+        .unwrap();
+    let friend_info_from_data = get_account(&mut program_context, &user_info_from_key).await;
+    let friend_info_from =
+        state::FriendInfo::try_from_slice(&friend_info_from_data.data.as_slice()).unwrap();
+
+    // Create account for user who will receive friend request
+    create_account(
+        &mut program_context,
+        &user_to.pubkey(),
+        &base_user_to,
+        &user_info_to_key,
+        instruction::AddressType::FriendInfo,
+    )
+    .await
+    .unwrap();
+    create_friend_info(&mut program_context, &user_info_to_key, &user_to)
+        .await
+        .unwrap();
+    let friend_info_to_data = get_account(&mut program_context, &user_info_to_key).await;
+    let friend_info_to =
+        state::FriendInfo::try_from_slice(&friend_info_to_data.data.as_slice()).unwrap();
+
+    let friend_request_min_rent = rent.minimum_balance(state::Request::LEN);
+
+    // Create request from account
+    let (request_from_base, _) =
+        Pubkey::find_program_address(&[&user_from.pubkey().to_bytes()[..32]], &id());
+    let request_from = Pubkey::create_with_seed(
+        &request_from_base,
+        &format!(
+            "{:?}{:?}",
+            friend_info_from.requests_outgoing,
+            processor::Processor::OUTGOING_REQUEST
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_account(
+        &mut program_context,
+        &user_from.pubkey(),
+        &request_from_base,
+        &request_from,
+        instruction::AddressType::RequestOutgoing(friend_info_from.requests_outgoing),
+    )
+    .await
+    .unwrap();
+
+    let (request_to_base, _) =
+        Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32]], &id());
+    let request_to = Pubkey::create_with_seed(
+        &request_to_base,
+        &format!(
+            "{:?}{:?}",
+            friend_info_to.requests_incoming,
+            processor::Processor::INCOMING_REQUEST
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_account(
+        &mut program_context,
+        &user_to.pubkey(),
+        &request_to_base,
+        &request_to,
+        instruction::AddressType::RequestIncoming(friend_info_to.requests_incoming),
+    )
+    .await
+    .unwrap();
+
+    create_friend_request(
+        &mut program_context,
+        &request_from,
+        &request_to,
+        &user_info_from_key,
+        &user_info_to_key,
+        &user_from,
+    )
+    .await
+    .unwrap();
+
+    deny_friend_request(
+        &mut program_context,
+        &request_from,
+        &request_to,
+        &request_from,
+        &request_to,
+        &user_info_from_key,
+        &user_info_to_key,
+        &user_to,
+    )
+    .await
+    .unwrap();
+
+    let request_from_info_data = get_account(&mut program_context, &request_from).await;
+    let request_from_info =
+        state::Request::try_from_slice(&request_from_info_data.data.as_slice()).unwrap();
+
+    assert_eq!(request_from_info.is_initialized(), false);
+
+    let request_to_info_data = get_account(&mut program_context, &request_to).await;
+    let request_to_info =
+        state::Request::try_from_slice(&request_to_info_data.data.as_slice()).unwrap();
+
+    assert_eq!(request_to_info.is_initialized(), false);
 }
