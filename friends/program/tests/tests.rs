@@ -28,7 +28,7 @@ pub async fn get_account(program_context: &mut ProgramTestContext, pubkey: &Pubk
         .expect("account empty")
 }
 
-pub async fn create_account(
+pub async fn create_account1(
     program_context: &mut ProgramTestContext,
     account: &Pubkey,
     base: &Keypair,
@@ -54,6 +54,33 @@ pub async fn create_account(
         &[&program_context.payer, base],
         program_context.last_blockhash,
     );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn create_account(
+    program_context: &mut ProgramTestContext,
+    user_address: &Pubkey,
+    base_program_address: &Pubkey,
+    address_to_create: &Pubkey,
+    address_type: instruction::AddressType,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::create_account(
+            &id(),
+            &program_context.payer.pubkey(),
+            user_address,
+            base_program_address,
+            address_to_create,
+            address_type,
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -95,7 +122,7 @@ async fn test_init_friend_info() {
     .unwrap();
 
     let account_min_rent = rent.minimum_balance(state::FriendInfo::LEN);
-    create_account(
+    create_account1(
         &mut program_context,
         &generated_key,
         &user,
@@ -125,34 +152,99 @@ async fn test_create_address() {
     let rent = program_context.banks_client.get_rent().await.unwrap();
 
     let user = Keypair::new();
-    let (base_program_address, bump_seed) = Pubkey::find_program_address(
-        &[&user.pubkey().to_bytes()[..32]],
+    let (base_program_address, bump_seed) =
+        Pubkey::find_program_address(&[&user.pubkey().to_bytes()[..32]], &id());
+    let address_to_create = Pubkey::create_with_seed(
+        &base_program_address,
+        processor::Processor::FRIEND_INFO_SEED,
         &id(),
-    );
-    let address_to_create = Pubkey::create_with_seed(&base_program_address, processor::Processor::FRIEND_INFO_SEED, &id()).unwrap();
+    )
+    .unwrap();
 
-    let mut transaction = Transaction::new_with_payer(
-        &[instruction::create_account(
-            &id(),
-            &program_context.payer.pubkey(),
-            &user.pubkey(),
-            &base_program_address,
-            &address_to_create,
-            instruction::AddressType::FriendInfo,
-        ).unwrap()],
-        Some(&program_context.payer.pubkey()));
-    transaction.sign(
-        &[&program_context.payer,],
-        program_context.last_blockhash,
-    );
-    program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await.unwrap();
-    
+    create_account(
+        &mut program_context,
+        &user.pubkey(),
+        &base_program_address,
+        &address_to_create,
+        instruction::AddressType::FriendInfo,
+    )
+    .await
+    .unwrap();
+
     let friend_info_data = get_account(&mut program_context, &address_to_create).await;
 
     assert_eq!(friend_info_data.data.len(), state::FriendInfo::LEN);
+
+    let request_index = 0;
+
+    let outgoing_req_to_create = Pubkey::create_with_seed(
+        &base_program_address,
+        &format!("{:?}{:?}", request_index, processor::Processor::OUTGOING_REQUEST),
+        &id(),
+    )
+    .unwrap();
+
+    create_account(
+        &mut program_context,
+        &user.pubkey(),
+        &base_program_address,
+        &outgoing_req_to_create,
+        instruction::AddressType::RequestOutgoing(request_index),
+    )
+    .await
+    .unwrap();
+
+    let outgoing_req_info_data = get_account(&mut program_context, &outgoing_req_to_create).await;
+
+    assert_eq!(outgoing_req_info_data.data.len(), state::Request::LEN);
+
+    let user_to = Keypair::new();
+    let (base_program_address, bump_seed) =
+        Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32]], &id());
+    let incoming_req_to_create = Pubkey::create_with_seed(
+        &base_program_address,
+        &format!("{:?}{:?}", request_index, processor::Processor::INCOMING_REQUEST),
+        &id(),
+    )
+    .unwrap();
+
+    create_account(
+        &mut program_context,
+        &user_to.pubkey(),
+        &base_program_address,
+        &incoming_req_to_create,
+        instruction::AddressType::RequestIncoming(request_index),
+    )
+    .await
+    .unwrap();
+
+    let incoming_req_info_data = get_account(&mut program_context, &incoming_req_to_create).await;
+
+    assert_eq!(incoming_req_info_data.data.len(), state::Request::LEN);
+
+    let (base_program_address, bump_seed) =
+        Pubkey::find_program_address(&[&user_to.pubkey().to_bytes()[..32], &user.pubkey().to_bytes()[..32]], &id());
+
+    let friend_acc_to_create = Pubkey::create_with_seed(
+        &base_program_address,
+        processor::Processor::FRIEND_SEED,
+        &id(),
+    )
+    .unwrap();
+
+    create_account(
+        &mut program_context,
+        &user_to.pubkey(),
+        &base_program_address,
+        &friend_acc_to_create,
+        instruction::AddressType::Friend(user.pubkey()),
+    )
+    .await
+    .unwrap();
+
+    let friend_acc_info_data = get_account(&mut program_context, &friend_acc_to_create).await;
+
+    assert_eq!(friend_acc_info_data.data.len(), state::Friend::LEN);
 }
 
 // #[tokio::test]
