@@ -23,10 +23,10 @@ pub enum Instruction {
     ///   - writeable         dweller
     ///   - writeable         dweller_server
     ///   - writeable         server_member
-    ///   - writeable          server 
+    ///   - writeable          server
     JoinServer,
 
-    /// Accounts: 
+    /// Accounts:
     ///   - signer registry_or_owner
     LeaveServer,
 
@@ -38,14 +38,14 @@ pub enum Instruction {
 
     /// Update the users status
     /// Accounts:
-    /// - signer  owner Dweller who ows account 
+    /// - signer  owner Dweller who ows account
     SetStatus,
 
     // - signer  admin
     // - write   channel
     // input:
     // - type_id u8
-    // - name  [u8; 32] 
+    // - name  [u8; 32]
     AddChannel,
 
     // - signer  admin
@@ -59,7 +59,7 @@ pub enum Instruction {
     // write [] group_channels
     // input:
     // name [u8;32]
-    // 
+    //
     CreateGroup,
 
     AddChannelToGroup,
