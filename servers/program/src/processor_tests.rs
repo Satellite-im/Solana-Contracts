@@ -67,8 +67,15 @@ async fn test_create_address() {
     )
     .await;
 
-    let (address_to_create, base_program_address, ..) = crate::program::create_base_index_with_seed(&id(), DwellerServer::SEED, &dweller.pubkey(), 1).unwrap();
-    
+    let (address_to_create, base_program_address, ..) =
+        crate::program::create_base_index_with_seed(
+            &id(),
+            DwellerServer::SEED,
+            &dweller.pubkey(),
+            1,
+        )
+        .unwrap();
+
     test_create_derived_account(
         &mut program_context,
         &dweller.pubkey(),

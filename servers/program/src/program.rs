@@ -22,9 +22,7 @@ pub fn create_base_index_with_seed(
     let (base, bump) = Pubkey::find_program_address(&[&seed_key.to_bytes()[..32]], program_id);
     let seed = format!("{:?}{:?}", type_name, index,);
     Ok((
-        Pubkey::create_with_seed(&base, 
-            &seed,
-             program_id)?,
+        Pubkey::create_with_seed(&base, &seed, program_id)?,
         base,
         bump,
         seed,
