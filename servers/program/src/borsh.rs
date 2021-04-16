@@ -46,7 +46,7 @@ impl<'a> AccountWithBorsh for AccountInfo<'a> {
         Ok(T::deserialize_const(&data)?)
     }
 
-    fn read_account_with_borsh_mut<T: BorshDeserialize>(
+    fn read_data_with_borsh_mut<T: BorshDeserialize>(
         &self,
     ) -> Result<(std::cell::RefMut<'a, &mut [u8]>, T), ProgramError> {
         let mut server_data = self.try_borrow_mut_data()?;

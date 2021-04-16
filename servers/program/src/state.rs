@@ -143,7 +143,6 @@ pub struct Server {
     pub administrators: u64,
     pub channels: u64,
     pub groups: u64,
-    pub groups_channels: u64,
 }
 
 impl Server {
@@ -177,6 +176,8 @@ pub struct ServerGroup {
     /// [Server::groups] index used to derive address
     pub index: u64,
     pub name: [u8; 32],
+
+    pub channels: u64,
 }
 
 impl ServerGroup {
@@ -186,16 +187,16 @@ impl ServerGroup {
 
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
-pub struct ServerGroupChannel {
+pub struct GroupChannel {
     pub version: StateVersion,
+    /// group
     pub container: Pubkey,
-    /// [Server::group_channels] index used to derive address
+    /// [Group::channels] index used to derive address
     pub index: u64,
-    pub group: Pubkey,
     pub channel: Pubkey,
 }
 
-impl ServerGroupChannel {
+impl GroupChannel {
     pub const LEN: u64 = 300;
-    pub const SEED: &'static str = "ServerGroupChannel";
+    pub const SEED: &'static str = "GroupChannel";
 }

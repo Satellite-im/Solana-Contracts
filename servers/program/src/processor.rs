@@ -559,15 +559,15 @@ impl Processor {
                 ServerGroup::LEN,
                 program_id,
             ),
-            AddressTypeInput::ServerGroupChannel(index) => create_seeded_rent_except_account(
-                ServerGroupChannel::SEED,
+            AddressTypeInput::GroupChannel(index) => create_seeded_rent_except_account(
+                GroupChannel::SEED,
                 owner_account_info,
                 index,
                 base_account_info,
                 account_to_create_info,
                 payer_account_info,
                 rent,
-                ServerGroupChannel::LEN,
+                GroupChannel::LEN,
                 program_id,
             ),
         }
@@ -823,14 +823,15 @@ impl Processor {
             Instruction::AddChannelToGroup => {
                 msg!("Instruction: AddChannelToGroup");
                 match accounts {
-                    [server, dweller, server_admin, channel, group_channel, ..] => {
+                    [server, dweller, server_admin, group, group_channel, channel, ..] => {
                         Self::add_channel_to_group(
                             program_id,
                             server,
                             dweller,
                             server_admin,
-                            channel,
+                            group,
                             group_channel,
+                            channel,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
@@ -840,13 +841,14 @@ impl Processor {
             Instruction::RemoveChannelFromGroup => {
                 msg!("Instruction: RemoveChannelFromGroup");
                 match accounts {
-                    [server, dweller, server_admin, channel, group_channel, group_channel_last, ..] => {
+                    [server, dweller, server_admin, channel, group, group_channel, group_channel_last, ..] => {
                         Self::remove_channel_from_group(
                             program_id,
                             server,
                             dweller,
                             server_admin,
                             channel,
+                            group,
                             group_channel,
                             group_channel_last,
                         )
@@ -854,9 +856,9 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
+
             Instruction::DeleteChannel => {
                 msg!("Instruction: DeleteChannel");
-
                 todo!()
             }
 
@@ -873,25 +875,26 @@ impl Processor {
         dweller: &AccountInfo<'a>,
         server_admin: &AccountInfo<'a>,
         channel: &AccountInfo<'a>,
+        group: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
         group_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
         requireAdmin(dweller, server, server_admin)?;
 
-        let group_channel_data: ServerGroupChannel = group_channel.read_data_with_borsh()?;
+        let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
         let group_channel_key = create_index_with_seed(
             program_id,
-            ServerGroupChannel::SEED,
-            server.key,
+            GroupChannel::SEED,
+            group.key,
             group_channel_data.index,
         )?;
         if group_channel_key == *group_channel.key {
-            swap_last_to_default::<ServerGroupChannel>(group_channel, group_channel)?;
+            swap_last_to_default::<GroupChannel>(group_channel, group_channel)?;
 
-            let (mut server_data, mut server_state) =
-                server.read_data_with_borsh_mut::<Server>()?;
-            server_state.groups_channels = server_state.groups_channels.error_decrement()?;
-            server_state.serialize_const(&mut server_data);
+            let (mut group_data, mut group_state) =
+                group.read_data_with_borsh_mut::<ServerGroup>()?;
+            group_state.channels = group_state.channels.error_decrement()?;
+            group_state.serialize_const(&mut group_data);
 
             return Ok(());
         }
@@ -904,32 +907,32 @@ impl Processor {
         server: &AccountInfo<'a>,
         dweller: &AccountInfo<'a>,
         server_admin: &AccountInfo<'a>,
+        group: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
         channel: &AccountInfo<'a>,
     ) -> ProgramResult {
         requireAdmin(dweller, server, server_admin)?;
 
-        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
+        let (mut group_data, mut group_state) = server.read_data_with_borsh_mut::<ServerGroup>()?;
 
         let group_channel_key = create_index_with_seed(
             program_id,
-            ServerGroupChannel::SEED,
-            server.key,
-            server_state.groups_channels,
+            GroupChannel::SEED,
+            group.key,
+            group_state.channels,
         )?;
         if group_channel_key == *group_channel.key {
             let (mut group_channel_data, mut group_channel_state) =
-                group_channel.read_data_with_borsh_mut::<ServerGroupChannel>()?;
+                group_channel.read_data_with_borsh_mut::<GroupChannel>()?;
 
             if group_channel_state.version == StateVersion::Uninitialized {
                 group_channel_state.container == *server.key;
-                group_channel_state.index = server_state.groups_channels;
+                group_channel_state.index = group_state.channels;
                 group_channel_state.channel = *channel.key;
 
-                server_state.groups_channels = server_state.groups_channels.error_increment()?;
-
+                group_state.channels = group_state.channels.error_increment()?;
                 group_channel_state.serialize_const(&mut group_channel_data)?;
-                server_state.serialize_const(&mut server_data)?;
+                group_state.serialize_const(&mut group_data)?;
                 return Ok(());
             }
         }

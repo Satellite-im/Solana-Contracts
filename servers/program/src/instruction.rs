@@ -70,8 +70,8 @@ pub enum Instruction {
     /// - write         server
     /// - write         server_channel
     /// - write         server_channel_last
-    /// - write         group_channel
-    /// - write         group_channel_last
+    /// - write         server_group_channel
+    /// - write         server_group_channel_last
     DeleteChannel,
 
     /// Initialize group and add to server.
@@ -87,12 +87,13 @@ pub enum Instruction {
     CreateGroup,
 
     /// Accounts:
+    /// - signer    dweller    
+    /// - read      server_administrator
     /// - write     server
-    /// - signer    admin
-    /// - write     group
-    /// - write     group_last
-    /// - write     group_channel
-    /// - write     group_channel_last
+    /// - write     server_group
+    /// - write     server_group_last
+    /// - write     server_group_channel
+    /// - write     server_group_channel_last
     DeleteGroup,
 
     /// Accounts:
@@ -183,7 +184,7 @@ pub enum AddressTypeInput {
     ServerMember(u64),
     ServerChannel(u64),
     ServerGroup(u64),
-    ServerGroupChannel(u64),
+    GroupChannel(u64),
 }
 
 #[repr(C)]
