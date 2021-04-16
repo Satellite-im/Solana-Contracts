@@ -18,6 +18,17 @@ pub fn create_index_with_seed(
     base: &Pubkey,
     index: u64,
 ) -> Result<Pubkey, PubkeyError> {
+//     let (base, _) =
+//     Pubkey::find_program_address(&[&friend_info_from.user.to_bytes()[..32]], program_id);
+// let generated_request_from_to_key = Pubkey::create_with_seed(
+//     &base,
+//     &format!(
+//         "{:?}{:?}",
+//         friend_info_from.requests_outgoing,
+//         Self::OUTGOING_REQUEST
+//     ),
+//     program_id,
+// )?;    
     Pubkey::create_with_seed(base, &format!("{:?}{:?}", type_name, index), &program_id)
 }
 
