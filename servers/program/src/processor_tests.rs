@@ -18,7 +18,7 @@ use crate::{
 
 pub fn program_test() -> ProgramTest {
     ProgramTest::new(
-        "sattelite_server",
+        "satellite_server",
         id(),
         processor!(processor::Processor::process_instruction),
     )

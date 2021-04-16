@@ -695,6 +695,31 @@ impl Processor {
             }
             Instruction::SetServerName => todo!(),
             Instruction::SetServerDb => todo!(),
+
+            // Instruction::SetDwellerName => {
+            //     msg!("Instruction: SetDwellerName");
+            //     match accounts {
+            //         [dweller, ..] => {
+            //             let input =
+            //                 super::instruction::SetNameInput::deserialize_const(&input[1..])?;
+
+            //             Self::set_dweller_name(program_id, dweller, &input)
+            //         }
+            //         _ => Err(ProgramError::NotEnoughAccountKeys),
+            //     }
+            // }
+            // Instruction::SetDwellerPhoto => {
+            //     msg!("Instruction: SetDwellerPhoto");
+            //     match accounts {
+            //         [dweller, ..] => {
+            //             let input =
+            //                 super::instruction::SetHashInput::deserialize_const(&input[1..])?;
+
+            //             Self::set_dweller_photo(program_id, dweller, &input)
+            //         }
+            //         _ => Err(ProgramError::NotEnoughAccountKeys),
+            //     }
+            // }            
         }
     }
 }

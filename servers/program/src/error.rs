@@ -27,7 +27,7 @@ impl From<Error> for ProgramError {
 
 impl<T> DecodeError<T> for Error {
     fn type_of() -> &'static str {
-        "Sattelite Server"
+        "Satellite Server"
     }
 }
 
