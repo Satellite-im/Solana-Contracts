@@ -7,7 +7,9 @@ use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
     error::Error,
     instruction::*,
-    program::{create_base_index_with_seed, create_index_with_seed},
+    program::{
+        create_base_index_with_seed, create_index_with_seed, create_seeded_rent_except_account,
+    },
     state::*,
 };
 use borsh::{BorshSchema, BorshSerialize};
@@ -780,17 +782,6 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::DeleteChannel => {
-                msg!("Instruction: DeleteChannel");
-
-                todo!()
-            }
-
-            Instruction::DeleteGroup => {
-                msg!("Instruction: DeleteGroup");
-                todo!()
-            }
-
             Instruction::JoinServer => {
                 msg!("Instruction: JoinServer");
                 match accounts {
@@ -825,9 +816,46 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::AddChannelToGroup => todo!(),
+            Instruction::AddChannelToGroup => {
+                msg!("Instruction: AddChannelToGroup");
+                match accounts {
+                    [server, admin, group_channel, channel, ..] => Self::add_channel_to_group(
+                        program_id,
+                        server,
+                        admin,
+                        group_channel,
+                        channel,
+                    ),
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
             Instruction::RemoveChannelFromGroup => todo!(),
+            Instruction::DeleteChannel => {
+                msg!("Instruction: DeleteChannel");
+
+                todo!()
+            }
+
+            Instruction::DeleteGroup => {
+                msg!("Instruction: DeleteGroup");
+                todo!()
+            }
         }
+    }
+
+    fn add_channel_to_group<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        admin: &AccountInfo<'a>,
+        group_channel: &AccountInfo<'a>,
+        channel: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if admin.is_signer {
+            let (mut server_data, mut server_state) =
+                server.read_account_with_borsh_mut::<Server>()?;
+        }
+
+        Err(Error::Failed.into())
     }
 
     fn leave_server<'a>(
@@ -1002,37 +1030,4 @@ fn remove_dweller_server(
     }
 
     Err(Error::Failed.into())
-}
-
-fn create_seeded_rent_except_account<'a>(
-    seed: &str,
-    owner_account_info: &AccountInfo<'a>,
-    index: &u64,
-    base_account_info: &AccountInfo<'a>,
-    account_to_create_info: &AccountInfo<'a>,
-    payer_account_info: &AccountInfo<'a>,
-    rent: &Rent,
-    len: u64,
-    program_id: &Pubkey,
-) -> Result<(), ProgramError> {
-    let (address_to_create, program_address, bump_seed, seed) =
-        create_base_index_with_seed(&crate::id(), seed, owner_account_info.key, *index)?;
-    if program_address != *base_account_info.key {
-        return Err(ProgramError::InvalidSeeds);
-    }
-    if address_to_create != *account_to_create_info.key {
-        return Err(ProgramError::InvalidSeeds);
-    }
-    let signature = &[&owner_account_info.key.to_bytes()[..32], &[bump_seed]];
-    crate::program::create_derived_account(
-        payer_account_info.clone(),
-        account_to_create_info.clone(),
-        base_account_info.clone(),
-        &seed,
-        rent.minimum_balance(len as usize),
-        len as u64,
-        program_id,
-        signature,
-    )?;
-    Ok(())
 }

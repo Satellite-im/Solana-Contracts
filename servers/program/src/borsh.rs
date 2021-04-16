@@ -35,11 +35,22 @@ where
 
 pub trait AccountWithBorsh {
     fn read_data_with_borsh<T: BorshDeserialize>(&self) -> Result<T, ProgramError>;
+    fn read_account_with_borsh_mut<T: BorshDeserialize>(
+        &self,
+    ) -> Result<(std::cell::RefMut<&mut [u8]>, T), ProgramError>;
 }
 
 impl<'a> AccountWithBorsh for AccountInfo<'a> {
     fn read_data_with_borsh<T: BorshDeserialize>(&self) -> Result<T, ProgramError> {
         let data = self.try_borrow_data()?;
         Ok(T::deserialize_const(&data)?)
+    }
+
+    fn read_account_with_borsh_mut<T: BorshDeserialize>(
+        &self,
+    ) -> Result<(std::cell::RefMut<'a, &mut [u8]>, T), ProgramError> {
+        let mut server_data = self.try_borrow_mut_data()?;
+        let mut server_state = T::deserialize_const(&mut server_data)?;
+        Ok((server_data, server_state))
     }
 }
