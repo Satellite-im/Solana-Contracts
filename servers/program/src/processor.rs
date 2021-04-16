@@ -164,8 +164,12 @@ impl Processor {
 
         if server_state.version == StateVersion::Uninitialized {
             server_state.name = input.name.clone();
-            let server_member_key =
-                create_index_with_seed(program_id, "Server", server.key, server_state.members)?;
+            let server_member_key = create_index_with_seed(
+                program_id,
+                ServerMember::SEED,
+                server.key,
+                server_state.members,
+            )?;
 
             let dweller_server_key = create_index_with_seed(
                 program_id,
@@ -224,8 +228,12 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let channel_key =
-                create_index_with_seed(program_id, "Server", server.key, server_state.channels)?;
+            let channel_key = create_index_with_seed(
+                program_id,
+                ServerChannel::SEED,
+                server.key,
+                server_state.channels,
+            )?;
 
             if channel_key == *server_channel.key {
                 let server_administrator_state =
@@ -233,21 +241,21 @@ impl Processor {
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = create_index_with_seed(
                         program_id,
-                        "Server",
+                        ServerAdministrator::SEED,
                         server.key,
                         server_administrator_state.index,
                     )?;
                     if administrator_member_key == *server_administrator.key {
                         let mut channel_data = server_channel.try_borrow_mut_data()?;
                         let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
-                        let channel_member_key = create_index_with_seed(
+                        let server_channel_key = create_index_with_seed(
                             program_id,
-                            "Server",
+                            ServerChannel::SEED,
                             server.key,
                             server_state.channels,
                         )?;
 
-                        if channel_member_key == *server_channel.key {
+                        if server_channel_key == *server_channel.key {
                             channel_state.version = StateVersion::V1;
                             channel_state.container = *server.key;
                             channel_state.name = input.name.clone();
@@ -287,8 +295,12 @@ impl Processor {
             let mut server_data = server.try_borrow_mut_data()?;
             let mut server_state = Server::deserialize_const(&server_data)?;
 
-            let group_key =
-                create_index_with_seed(program_id, "Server", server.key, server_state.groups)?;
+            let group_key = create_index_with_seed(
+                program_id,
+                ServerGroup::SEED,
+                server.key,
+                server_state.groups,
+            )?;
 
             if group_key == *server_group.key {
                 let server_administrator_state: ServerAdministrator =
@@ -296,21 +308,21 @@ impl Processor {
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = create_index_with_seed(
                         program_id,
-                        "Server",
+                        ServerAdministrator::SEED,
                         server.key,
                         server_administrator_state.index,
                     )?;
                     if administrator_member_key == *server_administrator.key {
                         let mut group_data = server_group.try_borrow_mut_data()?;
                         let mut group_state = ServerGroup::deserialize_const(&group_data)?;
-                        let channel_member_key = create_index_with_seed(
+                        let channel_key = create_index_with_seed(
                             program_id,
-                            "Server",
+                            ServerChannel::SEED,
                             server.key,
                             server_state.groups,
                         )?;
 
-                        if channel_member_key == *server_group.key {
+                        if channel_key == *server_group.key {
                             group_state.container = *server.key;
                             group_state.name = input.name.clone();
                             group_state.version = StateVersion::V1;
@@ -351,7 +363,7 @@ impl Processor {
 
             let administrator_key = create_index_with_seed(
                 program_id,
-                "Server",
+                ServerAdministrator::SEED,
                 server.key,
                 server_state.administrators,
             )?;
@@ -443,7 +455,7 @@ impl Processor {
 
             let administrator_key = create_index_with_seed(
                 program_id,
-                "Server",
+                ServerAdministrator::SEED,
                 server.key,
                 server_administrator_state.index,
             )?;
@@ -454,7 +466,7 @@ impl Processor {
 
                 let member_status_key = create_index_with_seed(
                     program_id,
-                    "Server",
+                    ServerMember::SEED,
                     server.key,
                     server_state.member_statuses,
                 )?;
@@ -859,7 +871,20 @@ impl Processor {
 
             Instruction::DeleteChannel => {
                 msg!("Instruction: DeleteChannel");
-                todo!()
+                // ISSUE: in original Solidity contract channels are not deleted from groups
+                match accounts {
+                    [dweller, server_administrator, server, server_channel, server_channel_last, ..] => {
+                        Self::delete_channel(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_channel,
+                            server_channel_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
             }
 
             Instruction::DeleteGroup => {
@@ -867,6 +892,38 @@ impl Processor {
                 todo!()
             }
         }
+    }
+
+    fn delete_channel<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_channel: &AccountInfo<'a>,
+        server_channel_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        requireAdmin(dweller, server, server_administrator)?;
+
+        let (mut channel_data, mut channel_state) =
+            server_channel.read_data_with_borsh_mut::<ServerChannel>()?;
+
+        let channel_key = create_index_with_seed(
+            program_id,
+            ServerChannel::SEED,
+            server.key,
+            channel_state.index,
+        )?;
+        if channel_key == *server_channel.key {
+            swap_last_to_default::<ServerChannel>(server_channel, server_channel_last)?;
+
+            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
+            state.channels = state.channels.error_decrement()?;
+            state.serialize_const(&mut data);
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
     }
 
     fn remove_channel_from_group<'a>(
@@ -889,7 +946,7 @@ impl Processor {
             group_channel_data.index,
         )?;
         if group_channel_key == *group_channel.key {
-            swap_last_to_default::<GroupChannel>(group_channel, group_channel)?;
+            swap_last_to_default::<GroupChannel>(group_channel, group_channel_last)?;
 
             let (mut group_data, mut group_state) =
                 group.read_data_with_borsh_mut::<ServerGroup>()?;

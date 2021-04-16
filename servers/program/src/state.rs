@@ -150,7 +150,7 @@ impl Server {
 }
 
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct ServerChannel {
     pub version: StateVersion,
 

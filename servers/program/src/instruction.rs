@@ -70,8 +70,6 @@ pub enum Instruction {
     /// - write         server
     /// - write         server_channel
     /// - write         server_channel_last
-    /// - write         server_group_channel
-    /// - write         server_group_channel_last
     DeleteChannel,
 
     /// Initialize group and add to server.
