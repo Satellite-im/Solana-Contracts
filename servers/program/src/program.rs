@@ -15,21 +15,11 @@ use solana_program::{
 pub fn create_index_with_seed(
     program_id: &Pubkey,
     type_name: &[u8],
-    base: &Pubkey,
+    seed_key: &Pubkey,
     index: u64,
 ) -> Result<Pubkey, PubkeyError> {
-//     let (base, _) =
-//     Pubkey::find_program_address(&[&friend_info_from.user.to_bytes()[..32]], program_id);
-// let generated_request_from_to_key = Pubkey::create_with_seed(
-//     &base,
-//     &format!(
-//         "{:?}{:?}",
-//         friend_info_from.requests_outgoing,
-//         Self::OUTGOING_REQUEST
-//     ),
-//     program_id,
-// )?;    
-    Pubkey::create_with_seed(base, &format!("{:?}{:?}", type_name, index), &program_id)
+    let (base, _) = Pubkey::find_program_address(&[&seed_key.to_bytes()[..32]], program_id);
+    Pubkey::create_with_seed(&base, &format!("{:?}{:?}", type_name, index,), program_id)
 }
 
 pub fn create_derived_account<'a>(

@@ -11,7 +11,10 @@ use crate::{
     state::*,
 };
 use borsh::BorshSerialize;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State, program_error::ProgramError, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
+    program_error::ProgramError, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
+};
 
 use super::prelude::*;
 
@@ -340,7 +343,7 @@ impl Processor {
     ) -> ProgramResult {
         // TODO: validate admin is admin of the server and signer
         // TODO: validate derived addresses are correct (read to get index etc)
-        
+
         let mut server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
 
@@ -421,7 +424,7 @@ impl Processor {
         _system_program: &AccountInfo<'a>,
         input: &AddressTypeInput,
     ) -> ProgramResult {
-        let rent = &Rent::from_account_info(rent_account_info)?;        
+        let rent = &Rent::from_account_info(rent_account_info)?;
         if system_program::id() != *_system_program.key {
             return Err(ProgramError::InvalidSeeds);
         }
