@@ -7,7 +7,7 @@ use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
     error::Error,
     instruction::*,
-    program::create_index_with_seed,
+    program::{create_base_index_with_seed, create_index_with_seed},
     state::*,
 };
 use borsh::{BorshSchema, BorshSerialize};
@@ -70,6 +70,50 @@ impl Processor {
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
                 state.photo_hash = input.hash.clone();
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
+    }
+
+    fn set_server_name<'a>(
+        _program_id: &Pubkey,
+        admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        input: &SetNameInput,
+    ) -> ProgramResult {
+        if admin.is_signer {
+            let mut data = server.try_borrow_mut_data()?;
+            let mut state = Server::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.name = input.name.clone();
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
+        }
+    }
+
+    fn set_server_db<'a>(
+        _program_id: &Pubkey,
+        admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        input: &SetHashInput,
+    ) -> ProgramResult {
+        if admin.is_signer {
+            let mut data = server.try_borrow_mut_data()?;
+            let mut state = Server::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.db_hash = input.hash.clone();
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
@@ -454,39 +498,73 @@ impl Processor {
             return Err(ProgramError::InvalidSeeds);
         }
         match input {
-            AddressTypeInput::DwellerServer(index) => {
-                msg!("dw");
-                let (program_address, bump_seed) = Pubkey::find_program_address(
-                    &[&owner_account_info.key.to_bytes()[..32]],
-                    program_id,
-                );
-                if program_address != *base_account_info.key {
-                    return Err(ProgramError::InvalidSeeds);
-                }
-
-                let address_to_create =
-                    Pubkey::create_with_seed(&program_address, DwellerServer::SEED, program_id)?;
-
-                if address_to_create != *account_to_create_info.key {
-                    return Err(ProgramError::InvalidSeeds);
-                }
-                let signature = &[&owner_account_info.key.to_bytes()[..32], &[bump_seed]];
-                msg!("DSAAD");
-                crate::program::create_derived_account(
-                    payer_account_info.clone(),
-                    account_to_create_info.clone(),
-                    base_account_info.clone(),
-                    DwellerServer::SEED,
-                    rent.minimum_balance(DwellerServer::LEN as usize),
-                    DwellerServer::LEN as u64,
-                    program_id,
-                    signature,
-                )?;
-                msg!("adsasdasd");
-            }
-            _ => todo!(),
+            AddressTypeInput::DwellerServer(index) => create_seeded_rent_except_account(
+                DwellerServer::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                DwellerServer::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerMemberStatus(index) => create_seeded_rent_except_account(
+                ServerMemberStatus::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerMemberStatus::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerMember(index) => create_seeded_rent_except_account(
+                ServerMember::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerMember::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerChannel(index) => create_seeded_rent_except_account(
+                ServerChannel::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerChannel::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerGroup(index) => create_seeded_rent_except_account(
+                ServerGroup::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerGroup::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerGroupChannel(index) => create_seeded_rent_except_account(
+                ServerGroupChannel::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerGroupChannel::LEN,
+                program_id,
+            ),
         }
-        Ok(())
     }
 
     /// Processes an instruction
@@ -502,10 +580,8 @@ impl Processor {
                 match accounts {
                     [payer_account_info, owner_account_info, base_account_info, account_to_create_info, rent_account_info, system_program, ..] =>
                     {
-                        msg!("Got");
                         let input =
                             super::instruction::AddressTypeInput::deserialize_const(&input[1..])?;
-                        msg!("Akk");
                         Self::create_derived_address(
                             program_id,
                             payer_account_info,
@@ -693,35 +769,66 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::SetServerName => todo!(),
-            Instruction::SetServerDb => todo!(),
 
-            // Instruction::SetDwellerName => {
-            //     msg!("Instruction: SetDwellerName");
-            //     match accounts {
-            //         [dweller, ..] => {
-            //             let input =
-            //                 super::instruction::SetNameInput::deserialize_const(&input[1..])?;
+            Instruction::SetServerName => {
+                msg!("Instruction: SetServerName");
+                match accounts {
+                    [admin, server, ..] => {
+                        let input =
+                            super::instruction::SetNameInput::deserialize_const(&input[1..])?;
 
-            //             Self::set_dweller_name(program_id, dweller, &input)
-            //         }
-            //         _ => Err(ProgramError::NotEnoughAccountKeys),
-            //     }
-            // }
-            // Instruction::SetDwellerPhoto => {
-            //     msg!("Instruction: SetDwellerPhoto");
-            //     match accounts {
-            //         [dweller, ..] => {
-            //             let input =
-            //                 super::instruction::SetHashInput::deserialize_const(&input[1..])?;
+                        Self::set_server_name(program_id, admin, server, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetServerDb => {
+                msg!("Instruction: SetServerDb");
+                match accounts {
+                    [admin, server, ..] => {
+                        let input =
+                            super::instruction::SetHashInput::deserialize_const(&input[1..])?;
 
-            //             Self::set_dweller_photo(program_id, dweller, &input)
-            //         }
-            //         _ => Err(ProgramError::NotEnoughAccountKeys),
-            //     }
-            // }            
+                        Self::set_server_db(program_id, admin, server, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
         }
     }
+}
+
+fn create_seeded_rent_except_account<'a>(
+    seed: &str,
+    owner_account_info: &AccountInfo<'a>,
+    index: &u64,
+    base_account_info: &AccountInfo<'a>,
+    account_to_create_info: &AccountInfo<'a>,
+    payer_account_info: &AccountInfo<'a>,
+    rent: &Rent,
+    len: u64,
+    program_id: &Pubkey,
+) -> Result<(), ProgramError> {
+    let (address_to_create, program_address, bump_seed, seed) =
+        create_base_index_with_seed(&crate::id(), seed, owner_account_info.key, *index)?;
+    if program_address != *base_account_info.key {
+        return Err(ProgramError::InvalidSeeds);
+    }
+    if address_to_create != *account_to_create_info.key {
+        return Err(ProgramError::InvalidSeeds);
+    }
+    let signature = &[&owner_account_info.key.to_bytes()[..32], &[bump_seed]];
+    crate::program::create_derived_account(
+        payer_account_info.clone(),
+        account_to_create_info.clone(),
+        base_account_info.clone(),
+        &seed,
+        rent.minimum_balance(len as usize),
+        len as u64,
+        program_id,
+        signature,
+    )?;
+    Ok(())
 }
 
 /// swaps provided member with last, erases last

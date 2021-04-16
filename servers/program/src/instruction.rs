@@ -156,16 +156,16 @@ pub enum Instruction {
     /// - write         member_status_last
     RevokeInviteServer,
 
-    /// accounts:
-    /// - signer admin
-    /// - write  server
+    /// Accounts:
+    /// - signer   admin
+    /// - write    server
     ///
     /// Input: [SetNameInput]
     SetServerName,
 
-    /// accounts:
-    /// - signer admin
-    /// - write  server
+    /// Accounts:
+    /// - signer    admin
+    /// - write     server
     ///
     /// Input: [SetHashInput]        
     SetServerDb,
@@ -175,7 +175,7 @@ pub enum Instruction {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub enum AddressTypeInput {
     DwellerServer(u64),
-    ServerStatusMember(u64),
+    ServerMemberStatus(u64),
     ServerMember(u64),
     ServerChannel(u64),
     ServerGroup(u64),

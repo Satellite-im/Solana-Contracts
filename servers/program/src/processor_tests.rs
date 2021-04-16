@@ -18,7 +18,7 @@ use crate::{
 
 pub fn program_test() -> ProgramTest {
     ProgramTest::new(
-        "satellite_server",
+        "satellite_servers",
         id(),
         processor!(processor::Processor::process_instruction),
     )
@@ -67,11 +67,8 @@ async fn test_create_address() {
     )
     .await;
 
-    let (base_program_address, bump_seed) =
-        Pubkey::find_program_address(&[&dweller.pubkey().to_bytes()[..32]], &id());
-    let address_to_create =
-        Pubkey::create_with_seed(&base_program_address, DwellerServer::SEED, &id()).unwrap();
-
+    let (address_to_create, base_program_address, ..) = crate::program::create_base_index_with_seed(&id(), DwellerServer::SEED, &dweller.pubkey(), 1).unwrap();
+    
     test_create_derived_account(
         &mut program_context,
         &dweller.pubkey(),

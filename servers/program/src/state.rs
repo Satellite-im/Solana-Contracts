@@ -83,6 +83,11 @@ pub struct ServerMember {
     pub dweller: Pubkey,
 }
 
+impl ServerMember {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerMember";
+}
+
 /// Dwellers who were invited.
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
@@ -141,6 +146,10 @@ pub struct Server {
     pub groups_channels: u64,
 }
 
+impl Server {
+    pub const LEN: u64 = 1000;
+}
+
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerChannel {
@@ -154,6 +163,11 @@ pub struct ServerChannel {
     pub name: [u8; 32],
 }
 
+impl ServerChannel {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerChannel";
+}
+
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroup {
@@ -165,6 +179,11 @@ pub struct ServerGroup {
     pub name: [u8; 32],
 }
 
+impl ServerGroup {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerGroup";
+}
+
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct ServerGroupChannel {
@@ -174,4 +193,9 @@ pub struct ServerGroupChannel {
     pub index: u64,
     pub group: Pubkey,
     pub channel: Pubkey,
+}
+
+impl ServerGroupChannel {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerGroupChannel";
 }

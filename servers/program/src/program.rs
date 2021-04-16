@@ -12,14 +12,33 @@ use solana_program::{
 };
 
 /// implements program seed public key address as indexed list pattern
+/// not optimal calling on chain, could store bump in state
+pub fn create_base_index_with_seed(
+    program_id: &Pubkey,
+    type_name: &str,
+    seed_key: &Pubkey,
+    index: u64,
+) -> Result<(Pubkey, Pubkey, u8, String), PubkeyError> {
+    let (base, bump) = Pubkey::find_program_address(&[&seed_key.to_bytes()[..32]], program_id);
+    let seed = format!("{:?}{:?}", type_name, index,);
+    Ok((
+        Pubkey::create_with_seed(&base, 
+            &seed,
+             program_id)?,
+        base,
+        bump,
+        seed,
+    ))
+}
+
 pub fn create_index_with_seed(
     program_id: &Pubkey,
     type_name: &str,
     seed_key: &Pubkey,
     index: u64,
 ) -> Result<Pubkey, PubkeyError> {
-    let (base, _) = Pubkey::find_program_address(&[&seed_key.to_bytes()[..32]], program_id);
-    Pubkey::create_with_seed(&base, &format!("{:?}{:?}", type_name, index,), program_id)
+    let (create, ..) = create_base_index_with_seed(program_id, type_name, seed_key, index)?;
+    Ok(create)
 }
 
 pub fn create_derived_account<'a>(
