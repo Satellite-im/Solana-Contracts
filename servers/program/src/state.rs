@@ -185,7 +185,7 @@ impl ServerGroup {
 }
 
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct ServerGroupChannel {
     pub version: StateVersion,
     pub container: Pubkey,

@@ -35,7 +35,7 @@ where
 
 pub trait AccountWithBorsh {
     fn read_data_with_borsh<T: BorshDeserialize>(&self) -> Result<T, ProgramError>;
-    fn read_account_with_borsh_mut<T: BorshDeserialize>(
+    fn read_data_with_borsh_mut<T: BorshDeserialize>(
         &self,
     ) -> Result<(std::cell::RefMut<&mut [u8]>, T), ProgramError>;
 }

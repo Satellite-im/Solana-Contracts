@@ -9,6 +9,7 @@ use crate::{
     instruction::*,
     program::{
         create_base_index_with_seed, create_index_with_seed, create_seeded_rent_except_account,
+        swap_last_to_default,
     },
     state::*,
 };
@@ -397,7 +398,7 @@ impl Processor {
                 server_state.administrators,
             )?;
             if last_key == *admin_last.key {
-                crate::program::swap_last::<ServerAdministrator>(admin, admin_last)?;
+                crate::program::swap_last_to_default::<ServerAdministrator>(admin, admin_last)?;
                 server_state.administrators = server_state.administrators.error_decrement()?;
                 return Ok(());
             }
@@ -419,7 +420,10 @@ impl Processor {
         let mut server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
 
-        crate::program::swap_last::<ServerMemberStatus>(member_status, member_status_last)?;
+        crate::program::swap_last_to_default::<ServerMemberStatus>(
+            member_status,
+            member_status_last,
+        )?;
         server_state.member_statuses = server_state.member_statuses.error_decrement()?;
 
         Ok(())
@@ -819,20 +823,37 @@ impl Processor {
             Instruction::AddChannelToGroup => {
                 msg!("Instruction: AddChannelToGroup");
                 match accounts {
-                    [server, dweller, server_admin, group_channel, channel, ..] => {
+                    [server, dweller, server_admin, channel, group_channel, ..] => {
                         Self::add_channel_to_group(
                             program_id,
                             server,
                             dweller,
                             server_admin,
-                            group_channel,
                             channel,
+                            group_channel,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::RemoveChannelFromGroup => todo!(),
+
+            Instruction::RemoveChannelFromGroup => {
+                msg!("Instruction: RemoveChannelFromGroup");
+                match accounts {
+                    [server, dweller, server_admin, channel, group_channel, group_channel_last, ..] => {
+                        Self::remove_channel_from_group(
+                            program_id,
+                            server,
+                            dweller,
+                            server_admin,
+                            channel,
+                            group_channel,
+                            group_channel_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
             Instruction::DeleteChannel => {
                 msg!("Instruction: DeleteChannel");
 
@@ -846,6 +867,38 @@ impl Processor {
         }
     }
 
+    fn remove_channel_from_group<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        server_admin: &AccountInfo<'a>,
+        channel: &AccountInfo<'a>,
+        group_channel: &AccountInfo<'a>,
+        group_channel_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        requireAdmin(dweller, server, server_admin)?;
+
+        let group_channel_data: ServerGroupChannel = group_channel.read_data_with_borsh()?;
+        let group_channel_key = create_index_with_seed(
+            program_id,
+            ServerGroupChannel::SEED,
+            server.key,
+            group_channel_data.index,
+        )?;
+        if group_channel_key == *group_channel.key {
+            swap_last_to_default::<ServerGroupChannel>(group_channel, group_channel)?;
+
+            let (mut server_data, mut server_state) =
+                server.read_data_with_borsh_mut::<Server>()?;
+            server_state.groups_channels = server_state.groups_channels.error_decrement()?;
+            server_state.serialize_const(&mut server_data);
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
+    }
+
     fn add_channel_to_group<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
@@ -856,7 +909,7 @@ impl Processor {
     ) -> ProgramResult {
         requireAdmin(dweller, server, server_admin)?;
 
-        let (mut server_data, mut server_state) = server.read_account_with_borsh_mut::<Server>()?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
         let group_channel_key = create_index_with_seed(
             program_id,
@@ -866,7 +919,7 @@ impl Processor {
         )?;
         if group_channel_key == *group_channel.key {
             let (mut group_channel_data, mut group_channel_state) =
-                group_channel.read_account_with_borsh_mut::<ServerGroupChannel>()?;
+                group_channel.read_data_with_borsh_mut::<ServerGroupChannel>()?;
 
             if group_channel_state.version == StateVersion::Uninitialized {
                 group_channel_state.container == *server.key;
@@ -1033,7 +1086,10 @@ fn remove_server_member(
         )?;
 
         if server_member_key == *server_member.key {
-            crate::program::swap_last::<ServerMember>(server_member, server_member_last)?;
+            crate::program::swap_last_to_default::<ServerMember>(
+                server_member,
+                server_member_last,
+            )?;
             server_state.members = server_state.members.error_decrement()?;
             server_state.serialize_const(&mut server_data);
             return Ok(());
@@ -1063,7 +1119,10 @@ fn remove_dweller_server(
         )?;
 
         if dweller_server_key == *dweller_server.key {
-            crate::program::swap_last::<DwellerServer>(dweller_server, dweller_server_last)?;
+            crate::program::swap_last_to_default::<DwellerServer>(
+                dweller_server,
+                dweller_server_last,
+            )?;
             dweller_state.servers = dweller_state.servers.error_decrement()?;
 
             dweller_state.serialize_const(&mut dweller_data);
