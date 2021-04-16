@@ -90,8 +90,7 @@ pub enum Instruction {
     /// - write     server
     /// - write     server_group
     /// - write     server_group_last
-    /// - write     server_group_channel
-    /// - write     server_group_channel_last
+    /// - write     [group_channel] all channels in group
     DeleteGroup,
 
     /// Accounts:

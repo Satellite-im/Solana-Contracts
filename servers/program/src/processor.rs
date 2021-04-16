@@ -889,9 +889,68 @@ impl Processor {
 
             Instruction::DeleteGroup => {
                 msg!("Instruction: DeleteGroup");
-                todo!()
+                match accounts {
+                    [dweller, server_administrator, server, server_group, server_group_last, ..] => {
+                        let group_channels = &accounts[5..];
+                        Self::delete_group(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_group,
+                            server_group_last,
+                            group_channels,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
             }
         }
+    }
+
+    fn delete_group<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_group: &AccountInfo<'a>,
+        server_channel_last: &AccountInfo<'a>,
+        group_channels: &[AccountInfo<'a>],
+    ) -> ProgramResult {
+        requireAdmin(dweller, server, server_administrator)?;
+
+        let channel_state = server_group.read_data_with_borsh::<ServerGroup>()?;
+        let group_key = create_index_with_seed(
+            program_id,
+            ServerGroup::SEED,
+            server.key,
+            channel_state.index,
+        )?;
+        if group_key == *server_group.key {
+            for child in group_channels {
+                let child_state = server_group.read_data_with_borsh::<GroupChannel>()?;
+                let child_key = create_index_with_seed(
+                    program_id,
+                    GroupChannel::SEED,
+                    &group_key,
+                    child_state.index,
+                )?;
+
+                if child_key == *child.key {
+                    swap_last_to_default::<GroupChannel>(child, child)?;
+                }
+            }
+
+            swap_last_to_default::<ServerGroup>(server_group, server_channel_last)?;
+
+            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
+            state.groups = state.groups.error_decrement()?;
+            state.serialize_const(&mut data);
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
     }
 
     fn delete_channel<'a>(
@@ -904,8 +963,7 @@ impl Processor {
     ) -> ProgramResult {
         requireAdmin(dweller, server, server_administrator)?;
 
-        let (mut channel_data, mut channel_state) =
-            server_channel.read_data_with_borsh_mut::<ServerChannel>()?;
+        let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
 
         let channel_key = create_index_with_seed(
             program_id,
