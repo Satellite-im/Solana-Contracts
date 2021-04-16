@@ -343,7 +343,7 @@ impl Processor {
     ) -> ProgramResult {
         let mut server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
-        if server_state.owner == *owner.key {
+        if server_state.owner == *owner.key && owner.is_signer {
             let last_key = crate::program::create_index_with_seed(
                 &crate::id(),
                 ServerAdministrator::SEED,
@@ -353,10 +353,11 @@ impl Processor {
             if last_key == *admin_last.key {
                 swap_last::<ServerAdministrator>(admin, admin_last)?;
                 server_state.administrators = server_state.administrators.error_decrement()?;
+                return Ok(());
             }
         }
 
-        Ok(())
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
     fn revoke_invite_server<'a>(
