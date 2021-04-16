@@ -18,6 +18,9 @@ pub enum FriendsProgramError {
     /// Addresses in request don't match addresses in FriendInfo accounts
     #[error("Addresses in request don't match addresses in FriendInfo accounts")]
     WrongRequestData,
+    /// Accounts are already friends
+    #[error("Accounts are already friends")]
+    AlreadyFriends,
 }
 impl From<FriendsProgramError> for ProgramError {
     fn from(e: FriendsProgramError) -> Self {
@@ -40,6 +43,7 @@ impl PrintProgramError for FriendsProgramError {
             FriendsProgramError::WrongRequestData => {
                 msg!("Addresses in request don't match addresses in FriendInfo accounts")
             }
+            FriendsProgramError::AlreadyFriends => msg!("Accounts are already friends"),
         }
     }
 }

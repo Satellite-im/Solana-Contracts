@@ -1,4 +1,15 @@
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State, program_error::ProgramError, program_pack::Pack, pubkey::{Pubkey, PubkeyError}, rent::Rent, system_instruction, sysvar::Sysvar};
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    nonce::State,
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::{Pubkey, PubkeyError},
+    rent::Rent,
+    system_instruction,
+    sysvar::Sysvar,
+};
 
 /// implements program seed public key address as indexed list pattern
 pub fn create_index_with_seed(
@@ -7,13 +18,8 @@ pub fn create_index_with_seed(
     base: &Pubkey,
     index: u64,
 ) -> Result<Pubkey, PubkeyError> {
-    Pubkey::create_with_seed(
-        base,
-        &format!("{:?}{:?}", type_name, index),
-        &program_id,
-    )
+    Pubkey::create_with_seed(base, &format!("{:?}{:?}", type_name, index), &program_id)
 }
-
 
 pub fn create_derived_account<'a>(
     funder: AccountInfo<'a>,
@@ -25,7 +31,7 @@ pub fn create_derived_account<'a>(
     owner: &Pubkey,
     signer_seeds: &[&[u8]],
 ) -> ProgramResult {
-     solana_program::program::invoke_signed(
+    solana_program::program::invoke_signed(
         &system_instruction::create_account_with_seed(
             &funder.key,
             &account_to_create.key,

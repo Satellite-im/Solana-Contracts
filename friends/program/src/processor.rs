@@ -12,7 +12,7 @@ use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
+    program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     system_instruction,
@@ -29,6 +29,8 @@ impl Processor {
     pub const OUTGOING_REQUEST: &'static str = "outgoing";
     /// Incoming request seed
     pub const INCOMING_REQUEST: &'static str = "incoming";
+    /// Friend seed
+    pub const FRIEND_SEED: &'static str = "friend";
 
     fn generate_request_address(
         current_index: u64,
@@ -39,8 +41,9 @@ impl Processor {
         let index = current_index
             .checked_sub(1)
             .ok_or::<ProgramError>(FriendsProgramError::CalculationError.into())?;
+        let (base, _) = Pubkey::find_program_address(&[&key.to_bytes()[..32]], program_id);
         Ok(Pubkey::create_with_seed(
-            key,
+            &base,
             &format!("{:?}{:?}", index, seed),
             program_id,
         )?)
@@ -218,6 +221,31 @@ impl Processor {
             .map_err(|e| e.into())
     }
 
+    fn create_account<'a>(
+        funder: AccountInfo<'a>,
+        account_to_create: AccountInfo<'a>,
+        base: AccountInfo<'a>,
+        seed: &str,
+        required_lamports: u64,
+        space: u64,
+        owner: &Pubkey,
+        signer_seeds: &[&[u8]],
+    ) -> ProgramResult {
+        invoke_signed(
+            &system_instruction::create_account_with_seed(
+                &funder.key,
+                &account_to_create.key,
+                &base.key,
+                seed,
+                required_lamports,
+                space,
+                owner,
+            ),
+            &[funder.clone(), account_to_create.clone(), base.clone()],
+            &[&signer_seeds],
+        )
+    }
+
     /// Initialize the friend info
     pub fn process_init_friend_info_instruction(
         program_id: &Pubkey,
@@ -229,8 +257,10 @@ impl Processor {
         let rent_account_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_account_info)?;
 
+        let (friend_info_base, _) =
+            Pubkey::find_program_address(&[&user_account_info.key.to_bytes()[..32]], program_id);
         let generated_friend_info =
-            Pubkey::create_with_seed(&user_account_info.key, Self::FRIEND_INFO_SEED, program_id)?;
+            Pubkey::create_with_seed(&friend_info_base, Self::FRIEND_INFO_SEED, program_id)?;
         if generated_friend_info != *friend_info_account.key {
             return Err(ProgramError::InvalidSeeds);
         }
@@ -287,8 +317,10 @@ impl Processor {
             return Err(ProgramError::UninitializedAccount);
         }
 
+        let (base, _) =
+            Pubkey::find_program_address(&[&friend_info_from.user.to_bytes()[..32]], program_id);
         let generated_request_from_to_key = Pubkey::create_with_seed(
-            &friend_info_from.user,
+            &base,
             &format!(
                 "{:?}{:?}",
                 friend_info_from.requests_outgoing,
@@ -300,8 +332,10 @@ impl Processor {
             return Err(ProgramError::InvalidSeeds);
         }
 
+        let (base, _) =
+            Pubkey::find_program_address(&[&friend_info_to.user.to_bytes()[..32]], program_id);
         let generated_request_to_from_key = Pubkey::create_with_seed(
-            &friend_info_to.user,
+            &base,
             &format!(
                 "{:?}{:?}",
                 friend_info_to.requests_incoming,
@@ -448,7 +482,7 @@ impl Processor {
 
         let mut friend_to = Friend::try_from_slice(&friend_to_account_info.data.borrow())?;
         if friend_to.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+            return Err(FriendsProgramError::AlreadyFriends.into());
         }
 
         if !rent.is_exempt(
@@ -460,7 +494,7 @@ impl Processor {
 
         let mut friend_from = Friend::try_from_slice(&friend_from_account_info.data.borrow())?;
         if friend_from.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized); // TODO: add error which inform about being friends already
+            return Err(FriendsProgramError::AlreadyFriends.into());
         }
 
         if !rent.is_exempt(
@@ -470,20 +504,28 @@ impl Processor {
             return Err(ProgramError::AccountNotRentExempt);
         }
 
-        let generated_friend_to_key = Pubkey::create_with_seed(
-            &friend_info_to.user,
-            &format!("{:?}", friend_info_from.user),
+        let (base, _) = Pubkey::find_program_address(
+            &[
+                &friend_info_to.user.to_bytes()[..32],
+                &friend_info_from.user.to_bytes()[..32],
+            ],
             program_id,
-        )?;
+        );
+        let generated_friend_to_key =
+            Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
         if generated_friend_to_key != *friend_to_account_info.key {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let generated_friend_from_key = Pubkey::create_with_seed(
-            &friend_info_from.user,
-            &format!("{:?}", friend_info_to.user),
+        let (base, _) = Pubkey::find_program_address(
+            &[
+                &friend_info_from.user.to_bytes()[..32],
+                &friend_info_to.user.to_bytes()[..32],
+            ],
             program_id,
-        )?;
+        );
+        let generated_friend_from_key =
+            Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
         if generated_friend_from_key != *friend_from_account_info.key {
             return Err(ProgramError::InvalidSeeds);
         }
@@ -622,20 +664,28 @@ impl Processor {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        let generated_friend_first = Pubkey::create_with_seed(
-            &friend_info_first.user,
-            &format!("{:?}", friend_info_second.user),
+        let (base, _) = Pubkey::find_program_address(
+            &[
+                &friend_info_first.user.to_bytes()[..32],
+                &friend_info_second.user.to_bytes()[..32],
+            ],
             program_id,
-        )?;
+        );
+        let generated_friend_first =
+            Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
         if generated_friend_first != *friend_first_account_info.key {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let generated_friend_second = Pubkey::create_with_seed(
-            &friend_info_second.user,
-            &format!("{:?}", friend_info_first.user),
+        let (base, _) = Pubkey::find_program_address(
+            &[
+                &friend_info_second.user.to_bytes()[..32],
+                &friend_info_first.user.to_bytes()[..32],
+            ],
             program_id,
-        )?;
+        );
+        let generated_friend_second =
+            Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
         if generated_friend_second != *friend_second_account_info.key {
             return Err(ProgramError::InvalidSeeds);
         }
@@ -651,7 +701,7 @@ impl Processor {
         }
 
         if *user_account_info.key != friend_info_first.user
-            || *user_account_info.key != friend_info_second.user
+            && *user_account_info.key != friend_info_second.user
             || !user_account_info.is_signer
         {
             return Err(ProgramError::MissingRequiredSignature);
@@ -676,31 +726,6 @@ impl Processor {
             .map_err(|e| e.into())
     }
 
-    fn create_account<'a>(
-        funder: AccountInfo<'a>,
-        account_to_create: AccountInfo<'a>,
-        base: AccountInfo<'a>,
-        seed: &str,
-        required_lamports: u64,
-        space: u64,
-        owner: &Pubkey,
-        signer_seeds: &[&[u8]],
-    ) -> ProgramResult {
-        invoke_signed(
-            &system_instruction::create_account_with_seed(
-                &funder.key,
-                &account_to_create.key,
-                &base.key,
-                seed,
-                required_lamports,
-                space,
-                owner,
-            ),
-            &[funder.clone(), account_to_create.clone(), base.clone()],
-            &[&signer_seeds],
-        )
-    }
-
     /// Create derived address
     pub fn process_create_address_instruction(
         program_id: &Pubkey,
@@ -718,14 +743,21 @@ impl Processor {
 
         match address_type {
             AddressType::FriendInfo => {
-                let (program_address, bump_seed) = Pubkey::find_program_address(
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
                     &[&user_account_info.key.to_bytes()[..32]],
                     program_id,
                 );
-                // TODO: check that program_address the same as base_account_info
-                let address_to_create =
-                    Pubkey::create_with_seed(&program_address, Self::FRIEND_INFO_SEED, program_id)?;
-                // TODO: check that address_to_create the same as account_to_create_info
+                if program_base_address != *base_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create = Pubkey::create_with_seed(
+                    &program_base_address,
+                    Self::FRIEND_INFO_SEED,
+                    program_id,
+                )?;
+                if address_to_create != *account_to_create_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
                 let signature = &[&user_account_info.key.to_bytes()[..32], &[bump_seed]];
                 Self::create_account(
                     payer_account_info.clone(),
@@ -738,11 +770,93 @@ impl Processor {
                     signature,
                 )?;
             }
-            AddressType::Request(index) => {
-                unimplemented!();
+            AddressType::RequestOutgoing(index) => {
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
+                    &[&user_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                if program_base_address != *base_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create = Pubkey::create_with_seed(
+                    &program_base_address,
+                    &format!("{:?}{:?}", index, Self::OUTGOING_REQUEST),
+                    program_id,
+                )?;
+                if address_to_create != *account_to_create_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let signature = &[&user_account_info.key.to_bytes()[..32], &[bump_seed]];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_info.clone(),
+                    base_account_info.clone(),
+                    &format!("{:?}{:?}", index, Self::OUTGOING_REQUEST),
+                    rent.minimum_balance(Request::LEN),
+                    Request::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
+            }
+            AddressType::RequestIncoming(index) => {
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
+                    &[&user_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                if program_base_address != *base_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create = Pubkey::create_with_seed(
+                    &program_base_address,
+                    &format!("{:?}{:?}", index, Self::INCOMING_REQUEST),
+                    program_id,
+                )?;
+                if address_to_create != *account_to_create_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let signature = &[&user_account_info.key.to_bytes()[..32], &[bump_seed]];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_info.clone(),
+                    base_account_info.clone(),
+                    &format!("{:?}{:?}", index, Self::INCOMING_REQUEST),
+                    rent.minimum_balance(Request::LEN),
+                    Request::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
             }
             AddressType::Friend(friend_key) => {
-                unimplemented!();
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
+                    &[
+                        &user_account_info.key.to_bytes()[..32],
+                        &friend_key.to_bytes()[..32],
+                    ],
+                    program_id,
+                );
+                if program_base_address != *base_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create =
+                    Pubkey::create_with_seed(&program_base_address, Self::FRIEND_SEED, program_id)?;
+                if address_to_create != *account_to_create_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let signature = &[
+                    &user_account_info.key.to_bytes()[..32],
+                    &friend_key.to_bytes()[..32],
+                    &[bump_seed],
+                ];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_info.clone(),
+                    base_account_info.clone(),
+                    Self::FRIEND_SEED,
+                    rent.minimum_balance(Friend::LEN),
+                    Friend::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
             }
         }
         Ok(())

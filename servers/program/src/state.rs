@@ -41,7 +41,7 @@ pub struct Dweller {
 }
 
 impl Dweller {
-    pub const LEN:  u64 = 300;
+    pub const LEN: u64 = 300;
 }
 
 /// Mapping of `Dweller` to `Server`.
@@ -58,7 +58,8 @@ pub struct DwellerServer {
 }
 
 impl DwellerServer {
-    pub const LEN:  u64 = 300;
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "DwellerServer";
 }
 
 /// Server members whom have joined

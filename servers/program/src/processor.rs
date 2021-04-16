@@ -397,11 +397,11 @@ impl Processor {
         owner_account_info: &AccountInfo<'a>,
         base_account_info: &AccountInfo<'a>,
         account_to_create_info: &AccountInfo<'a>,
-        rent_account_info: &AccountInfo<'a>,        
+        rent_account_info: &AccountInfo<'a>,
         _system_program: &AccountInfo<'a>,
         input: &AddressTypeInput,
     ) -> ProgramResult {
-        let rent = &Rent::from_account_info(rent_account_info)?;        
+        let rent = &Rent::from_account_info(rent_account_info)?;
         match input {
             AddressTypeInput::DwellerServer(index) => {
                 msg!("dw");
@@ -410,22 +410,22 @@ impl Processor {
                     program_id,
                 );
                 if program_address != *base_account_info.key {
-                    return Err(ProgramError::InvalidAccountData);
+                    return Err(ProgramError::InvalidSeeds);
                 }
 
                 let address_to_create =
-                    Pubkey::create_with_seed(&program_address, "DwellerServer", program_id)?;
-                
+                    Pubkey::create_with_seed(&program_address, DwellerServer::SEED, program_id)?;
+
                 if address_to_create != *account_to_create_info.key {
-                    return Err(ProgramError::InvalidAccountData);
-                }                    
+                    return Err(ProgramError::InvalidSeeds);
+                }
                 let signature = &[&owner_account_info.key.to_bytes()[..32], &[bump_seed]];
                 msg!("DSAAD");
                 crate::program::create_derived_account(
                     payer_account_info.clone(),
                     account_to_create_info.clone(),
                     base_account_info.clone(),
-                    "DwellerServer",
+                    DwellerServer::SEED,
                     rent.minimum_balance(DwellerServer::LEN as usize),
                     DwellerServer::LEN as u64,
                     program_id,
@@ -433,7 +433,7 @@ impl Processor {
                 )?;
                 msg!("adsasdasd");
             }
-            _ => todo!()
+            _ => todo!(),
         }
         Ok(())
     }
@@ -449,29 +449,26 @@ impl Processor {
             Instruction::CreateDerivedAccount => {
                 msg!("Instruction: CreateDerivedAccount");
                 match accounts {
-                    [payer_account_info,
-                    owner_account_info,
-                    base_account_info,
-                    account_to_create_info,
-                    rent_account_info,        
-                    system_program, ..] => {
+                    [payer_account_info, owner_account_info, base_account_info, account_to_create_info, rent_account_info, system_program, ..] =>
+                    {
                         msg!("Got");
-                        let input = super::instruction::AddressTypeInput::deserialize_const(
-                            &input[1..],
-                        )?;
+                        let input =
+                            super::instruction::AddressTypeInput::deserialize_const(&input[1..])?;
                         msg!("Akk");
-                        Self::create_derived_address(program_id,
+                        Self::create_derived_address(
+                            program_id,
                             payer_account_info,
                             owner_account_info,
                             base_account_info,
                             account_to_create_info,
-                            rent_account_info,        
-                            system_program,                                               
-                             &input)
+                            rent_account_info,
+                            system_program,
+                            &input,
+                        )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
-            },
+            }
             Instruction::InitializeDweller => {
                 msg!("Instruction: InitializeDweller");
                 match accounts {

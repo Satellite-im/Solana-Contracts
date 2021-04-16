@@ -5,8 +5,7 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar,
-    system_program,
+    system_program, sysvar,
 };
 
 /// Address type
@@ -14,8 +13,10 @@ use solana_program::{
 pub enum AddressType {
     /// FriendInfo
     FriendInfo,
-    /// Request with index
-    Request(u64),
+    /// Outgoing request with index
+    RequestOutgoing(u64),
+    /// Incoming request with index
+    RequestIncoming(u64),
     /// Friend
     Friend(Pubkey),
 }

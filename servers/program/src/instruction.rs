@@ -2,12 +2,13 @@
 
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_derive::ToPrimitive;
-use solana_program::{instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar};
+use solana_program::{
+    instruction::AccountMeta, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+};
 
 /// Instructions
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, ToPrimitive)]
 pub enum Instruction {
-
     /// Create derived account
     ///
     /// Input: [AddressTypeInput]
@@ -177,7 +178,7 @@ pub enum AddressTypeInput {
     ServerMember(u64),
     ServerChannel(u64),
     ServerGroup(u64),
-    ServerGroupChannel(u64),    
+    ServerGroupChannel(u64),
 }
 
 #[repr(C)]
@@ -285,7 +286,7 @@ pub fn initialize_server(
         AccountMeta::new(*server, true),
         AccountMeta::new(*dweller_server, false),
         AccountMeta::new(*server_member, false),
-        ];
+    ];
 
     Ok(solana_program::instruction::Instruction {
         program_id: crate::id(),
