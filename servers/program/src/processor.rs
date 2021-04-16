@@ -819,13 +819,16 @@ impl Processor {
             Instruction::AddChannelToGroup => {
                 msg!("Instruction: AddChannelToGroup");
                 match accounts {
-                    [server, admin, group_channel, channel, ..] => Self::add_channel_to_group(
-                        program_id,
-                        server,
-                        admin,
-                        group_channel,
-                        channel,
-                    ),
+                    [server, dweller, server_admin, group_channel, channel, ..] => {
+                        Self::add_channel_to_group(
+                            program_id,
+                            server,
+                            dweller,
+                            server_admin,
+                            group_channel,
+                            channel,
+                        )
+                    }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
@@ -846,13 +849,36 @@ impl Processor {
     fn add_channel_to_group<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
-        admin: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        server_admin: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
         channel: &AccountInfo<'a>,
     ) -> ProgramResult {
-        if admin.is_signer {
-            let (mut server_data, mut server_state) =
-                server.read_account_with_borsh_mut::<Server>()?;
+        requireAdmin(dweller, server, server_admin)?;
+
+        let (mut server_data, mut server_state) = server.read_account_with_borsh_mut::<Server>()?;
+
+        let group_channel_key = create_index_with_seed(
+            program_id,
+            ServerGroupChannel::SEED,
+            server.key,
+            server_state.groups_channels,
+        )?;
+        if group_channel_key == *group_channel.key {
+            let (mut group_channel_data, mut group_channel_state) =
+                group_channel.read_account_with_borsh_mut::<ServerGroupChannel>()?;
+
+            if group_channel_state.version == StateVersion::Uninitialized {
+                group_channel_state.container == *server.key;
+                group_channel_state.index = server_state.groups_channels;
+                group_channel_state.channel = *channel.key;
+
+                server_state.groups_channels = server_state.groups_channels.error_increment()?;
+
+                group_channel_state.serialize_const(&mut group_channel_data)?;
+                server_state.serialize_const(&mut server_data)?;
+                return Ok(());
+            }
         }
 
         Err(Error::Failed.into())
@@ -970,6 +996,22 @@ impl Processor {
 
         Err(Error::Failed.into())
     }
+}
+
+fn requireAdmin(
+    dweller: &AccountInfo,
+    server: &AccountInfo,
+    server_admin: &AccountInfo,
+) -> ProgramResult {
+    if dweller.is_signer {
+        let server_admin_state: ServerAdministrator = server_admin.read_data_with_borsh()?;
+        if server_admin_state.container == *server.key && server_admin_state.dweller == *dweller.key
+        {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+    }
+
+    Ok(())
 }
 
 fn remove_server_member(

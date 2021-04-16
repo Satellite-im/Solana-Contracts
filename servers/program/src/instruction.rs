@@ -97,14 +97,16 @@ pub enum Instruction {
 
     /// Accounts:
     /// - write     server
-    /// - signer    admin
+    /// - signer    dweller
+    /// - read      server_admin
     /// - write     group_channel
     /// - read      channel
     AddChannelToGroup,
 
     /// Accounts:
     /// - write     server
-    /// - signer    admin
+    /// - signer    dweller
+    /// - read      server_admin
     /// - read      channel
     /// - write     group_channel
     /// - write     group_channel_last
