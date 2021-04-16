@@ -133,13 +133,14 @@ pub enum Instruction {
     ///   - read              server_member_status
     JoinServer,
 
-    /// accounts:
+    /// Accounts:
     ///
-    /// - write    server
-    /// - write    member
-    /// - write    member_last
-    /// - write    dweller_server
-    /// - write    dweller_server_last
+    /// - write, signer     dweller
+    /// - write             server
+    /// - write             server_member
+    /// - write             server_member_last
+    /// - write             dweller_server
+    /// - write             dweller_server_last
     LeaveServer,
 
     /// Accounts:

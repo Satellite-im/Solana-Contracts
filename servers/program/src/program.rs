@@ -67,7 +67,6 @@ pub fn create_derived_account<'a>(
     )
 }
 
-
 /// swaps provided member with last, erases last
 pub fn swap_last<T: Default + BorshSerialize>(
     current: &AccountInfo,

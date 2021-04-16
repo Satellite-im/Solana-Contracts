@@ -807,10 +807,57 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::LeaveServer => todo!(),
+
+            Instruction::LeaveServer => {
+                msg!("Instruction: LeaveServer");
+                match accounts {
+                    [dweller, server, server_member, server_member_last, dweller_server, dweller_server_last, ..] => {
+                        Self::leave_server(
+                            program_id,
+                            dweller,
+                            server,
+                            server_member,
+                            server_member_last,
+                            dweller_server,
+                            dweller_server_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
             Instruction::AddChannelToGroup => todo!(),
             Instruction::RemoveChannelFromGroup => todo!(),
         }
+    }
+
+    fn leave_server<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_member: &AccountInfo<'a>,
+        server_member_last: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
+        dweller_server_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            remove_dweller_server(
+                dweller,
+                dweller_server,
+                server,
+                program_id,
+                dweller_server_last,
+            )?;
+            remove_server_member(
+                server,
+                server_member,
+                dweller,
+                program_id,
+                server_member_last,
+            )?;
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
     }
 
     fn join_server<'a>(
@@ -895,6 +942,66 @@ impl Processor {
 
         Err(Error::Failed.into())
     }
+}
+
+fn remove_server_member(
+    server: &AccountInfo,
+    server_member: &AccountInfo,
+    dweller: &AccountInfo,
+    program_id: &Pubkey,
+    server_member_last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut server_data = server.try_borrow_mut_data()?;
+    let mut server_state = Server::deserialize_const(&server_data)?;
+    let mut server_member_state: ServerMember = server_member.read_data_with_borsh()?;
+    if server_member_state.container == *server.key && server_member_state.dweller == *dweller.key {
+        let server_member_key = create_index_with_seed(
+            program_id,
+            DwellerServer::SEED,
+            server.key,
+            server_member_state.index,
+        )?;
+
+        if server_member_key == *server_member.key {
+            crate::program::swap_last::<ServerMember>(server_member, server_member_last)?;
+            server_state.members = server_state.members.error_decrement()?;
+            server_state.serialize_const(&mut server_data);
+            return Ok(());
+        }
+    }
+
+    Err(Error::Failed.into())
+}
+
+fn remove_dweller_server(
+    dweller: &AccountInfo,
+    dweller_server: &AccountInfo,
+    server: &AccountInfo,
+    program_id: &Pubkey,
+    dweller_server_last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut dweller_data = dweller.try_borrow_mut_data()?;
+    let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
+    let mut dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
+    if dweller_server_state.server == *server.key && dweller_server_state.container == *dweller.key
+    {
+        let dweller_server_key = create_index_with_seed(
+            program_id,
+            DwellerServer::SEED,
+            dweller.key,
+            dweller_server_state.index,
+        )?;
+
+        if dweller_server_key == *dweller_server.key {
+            crate::program::swap_last::<DwellerServer>(dweller_server, dweller_server_last)?;
+            dweller_state.servers = dweller_state.servers.error_decrement()?;
+
+            dweller_state.serialize_const(&mut dweller_data);
+            return Ok(());
+        }
+    }
+
+    Err(Error::Failed.into())
 }
 
 fn create_seeded_rent_except_account<'a>(

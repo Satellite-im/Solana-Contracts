@@ -53,7 +53,7 @@ impl Dweller {
 /// Mapping of `Dweller` to `Server`.
 /// Account address is be derived from `Dweller`
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct DwellerServer {
     pub version: StateVersion,
     /// dweller
@@ -73,7 +73,7 @@ impl DwellerServer {
 /// many to many map of `Server` to `DwellerID` (inverse of `DwellerServer`)
 /// Payed by dweller.
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct ServerMember {
     pub version: StateVersion,
     /// server
