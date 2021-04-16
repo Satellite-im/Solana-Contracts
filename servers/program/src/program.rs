@@ -1,3 +1,6 @@
+use std::mem;
+
+use borsh::BorshSerialize;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
@@ -62,4 +65,19 @@ pub fn create_derived_account<'a>(
         &[funder.clone(), account_to_create.clone(), base.clone()],
         &[&signer_seeds],
     )
+}
+
+
+/// swaps provided member with last, erases last
+pub fn swap_last<T: Default + BorshSerialize>(
+    current: &AccountInfo,
+    last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut current_data = last.data.borrow_mut();
+    let mut last_data = last.data.borrow_mut();
+    if current.key != last.key {
+        mem::swap(&mut *current_data, &mut *last_data);
+    }
+    T::default().serialize(&mut *last_data)?;
+    Ok(())
 }

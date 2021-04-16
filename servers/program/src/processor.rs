@@ -395,7 +395,7 @@ impl Processor {
                 server_state.administrators,
             )?;
             if last_key == *admin_last.key {
-                swap_last::<ServerAdministrator>(admin, admin_last)?;
+                crate::program::swap_last::<ServerAdministrator>(admin, admin_last)?;
                 server_state.administrators = server_state.administrators.error_decrement()?;
                 return Ok(());
             }
@@ -417,7 +417,7 @@ impl Processor {
         let mut server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
 
-        swap_last::<ServerMemberStatus>(member_status, member_status_last)?;
+        crate::program::swap_last::<ServerMemberStatus>(member_status, member_status_last)?;
         server_state.member_statuses = server_state.member_statuses.error_decrement()?;
 
         Ok(())
@@ -927,19 +927,5 @@ fn create_seeded_rent_except_account<'a>(
         program_id,
         signature,
     )?;
-    Ok(())
-}
-
-/// swaps provided member with last, erases last
-fn swap_last<T: Default + BorshSerialize>(
-    current: &AccountInfo,
-    last: &AccountInfo,
-) -> Result<(), ProgramError> {
-    let mut current_data = last.data.borrow_mut();
-    let mut last_data = last.data.borrow_mut();
-    if current.key != last.key {
-        mem::swap(&mut *current_data, &mut *last_data);
-    }
-    T::default().serialize(&mut *last_data)?;
     Ok(())
 }
