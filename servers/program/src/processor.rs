@@ -1,5 +1,7 @@
 //! Program state processor
 
+use std::mem;
+
 use super::borsh::*;
 use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
@@ -8,6 +10,7 @@ use crate::{
     program::create_index_with_seed,
     state::*,
 };
+use borsh::BorshSerialize;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
     program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
@@ -331,6 +334,26 @@ impl Processor {
         }
     }
 
+    fn revoke_invite_server<'a>(
+        program_id: &Pubkey,
+        admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        member_status: &AccountInfo<'a>,
+        member_status_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        // TODO: validate admin is admin of the server and signer
+        // TODO: validate derived addresses are correct (read to get index etc)
+        
+        let mut server_data = server.try_borrow_mut_data()?;
+        let mut server_state = Server::deserialize_const(&server_data)?;
+
+        swap_last::<ServerMemberStatus>(member_status, member_status_last)?;
+
+        server_state.member_statuses = server_state.member_statuses.error_decrement()?;
+
+        Ok(())
+    }
+
     fn invite_to_server<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
@@ -369,7 +392,7 @@ impl Processor {
                     member_status_state.container = *server.key;
                     member_status_state.version = StateVersion::V1;
                     member_status_state.dweller = *dweller.key;
-                    member_status_state.invited = true;
+
                     server_state.member_statuses =
                         server_state.member_statuses.error_increment()?;
 
@@ -602,7 +625,54 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            _ => todo!(),
+
+            Instruction::DeleteChannel => {
+                msg!("Instruction: DeleteChannel");
+
+                todo!()
+            }
+
+            Instruction::DeleteGroup => {
+                msg!("Instruction: DeleteGroup");
+                todo!()
+            }
+
+            Instruction::AddChannelToGroup => todo!(),
+            Instruction::RemoveChannelFromGroup => todo!(),
+            Instruction::RemoveAdmin => todo!(),
+            Instruction::JoinServer => todo!(),
+            Instruction::LeaveServer => todo!(),
+            Instruction::RevokeInviteServer => {
+                msg!("Instruction: RevokeInviteServer");
+                match accounts {
+                    [admin, server, member_status, member_status_last, ..] => {
+                        Self::revoke_invite_server(
+                            program_id,
+                            admin,
+                            server,
+                            member_status,
+                            member_status_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetServerName => todo!(),
+            Instruction::SetServerDb => todo!(),
         }
     }
+}
+
+/// swaps provided member with last, erases last
+fn swap_last<T: Default + BorshSerialize>(
+    current: &AccountInfo,
+    last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut current_data = last.data.borrow_mut();
+    let mut last_data = last.data.borrow_mut();
+    if current.key != last.key {
+        mem::swap(&mut *current_data, &mut *last_data);
+    }
+    T::default().serialize(&mut *last_data)?;
+    Ok(())
 }

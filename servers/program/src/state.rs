@@ -19,6 +19,12 @@ pub enum StateVersion {
     V1,
 }
 
+impl Default for StateVersion {
+    fn default() -> Self {
+        StateVersion::Uninitialized
+    }
+}
+
 /// address of signer + separate program deployed
 /// https://github.com/Satellite-im/Satellite-Contracts/blob/main/contracts/DwellerID.sol
 #[repr(C)]
@@ -79,14 +85,18 @@ pub struct ServerMember {
 
 /// Dwellers who were invited.
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct ServerMemberStatus {
     pub version: StateVersion,
     /// server
     pub container: Pubkey,
     pub index: u64,
     pub dweller: Pubkey,
-    pub invited: bool,
+}
+
+impl ServerMemberStatus {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerMemberStatus";
 }
 
 #[repr(C)]

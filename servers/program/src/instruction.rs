@@ -149,10 +149,11 @@ pub enum Instruction {
     /// - write     member_status
     InviteToServer,
 
-    /// accounts:
-    /// - write     server
-    /// - write     member_status
-    /// - write     member_status_last
+    /// Accounts:
+    /// - read signer   admin
+    /// - write         server
+    /// - write         member_status
+    /// - write         member_status_last
     RevokeInviteServer,
 
     /// accounts:

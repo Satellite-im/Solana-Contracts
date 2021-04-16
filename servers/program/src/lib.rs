@@ -1,4 +1,4 @@
-//! sattelite servers
+//! Ыattelite servers
 //TODO: fix it #![deny(missing_docs)]
 
 mod borsh;
