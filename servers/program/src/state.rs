@@ -100,7 +100,7 @@ impl ServerMemberStatus {
 }
 
 #[repr(C)]
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema, Default)]
 pub struct ServerAdministrator {
     pub version: StateVersion,
     /// server
@@ -108,6 +108,11 @@ pub struct ServerAdministrator {
     /// [Server::administrators] index used to derive address
     pub index: u64,
     pub dweller: Pubkey,
+}
+
+impl ServerAdministrator {
+    pub const LEN: u64 = 300;
+    pub const SEED: &'static str = "ServerAdministrator";
 }
 
 #[repr(C)]

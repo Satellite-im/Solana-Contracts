@@ -14,7 +14,7 @@ use solana_program::{
 /// implements program seed public key address as indexed list pattern
 pub fn create_index_with_seed(
     program_id: &Pubkey,
-    type_name: &[u8],
+    type_name: &str,
     seed_key: &Pubkey,
     index: u64,
 ) -> Result<Pubkey, PubkeyError> {

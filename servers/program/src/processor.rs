@@ -10,7 +10,7 @@ use crate::{
     program::create_index_with_seed,
     state::*,
 };
-use borsh::BorshSerialize;
+use borsh::{BorshSchema, BorshSerialize};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
     program_error::ProgramError, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
@@ -118,11 +118,11 @@ impl Processor {
         if server_state.version == StateVersion::Uninitialized {
             server_state.name = input.name.clone();
             let server_member_key =
-                create_index_with_seed(program_id, b"Server", server.key, server_state.members)?;
+                create_index_with_seed(program_id, "Server", server.key, server_state.members)?;
 
             let dweller_server_key = create_index_with_seed(
                 program_id,
-                b"Dweller",
+                "Dweller",
                 dweller_owner.key,
                 dweller_state.servers,
             )?;
@@ -178,7 +178,7 @@ impl Processor {
             let mut server_state = Server::deserialize_const(&server_data)?;
 
             let channel_key =
-                create_index_with_seed(program_id, b"Server", server.key, server_state.channels)?;
+                create_index_with_seed(program_id, "Server", server.key, server_state.channels)?;
 
             if channel_key == *server_channel.key {
                 let server_administrator_state =
@@ -186,7 +186,7 @@ impl Processor {
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = create_index_with_seed(
                         program_id,
-                        b"Server",
+                        "Server",
                         server.key,
                         server_administrator_state.index,
                     )?;
@@ -195,7 +195,7 @@ impl Processor {
                         let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
                         let channel_member_key = create_index_with_seed(
                             program_id,
-                            b"Server",
+                            "Server",
                             server.key,
                             server_state.channels,
                         )?;
@@ -241,7 +241,7 @@ impl Processor {
             let mut server_state = Server::deserialize_const(&server_data)?;
 
             let group_key =
-                create_index_with_seed(program_id, b"Server", server.key, server_state.groups)?;
+                create_index_with_seed(program_id, "Server", server.key, server_state.groups)?;
 
             if group_key == *server_group.key {
                 let server_administrator_state: ServerAdministrator =
@@ -249,7 +249,7 @@ impl Processor {
                 if server_administrator_state.dweller == *dweller.key {
                     let administrator_member_key = create_index_with_seed(
                         program_id,
-                        b"Server",
+                        "Server",
                         server.key,
                         server_administrator_state.index,
                     )?;
@@ -258,7 +258,7 @@ impl Processor {
                         let mut group_state = ServerGroup::deserialize_const(&group_data)?;
                         let channel_member_key = create_index_with_seed(
                             program_id,
-                            b"Server",
+                            "Server",
                             server.key,
                             server_state.groups,
                         )?;
@@ -304,7 +304,7 @@ impl Processor {
 
             let administrator_key = create_index_with_seed(
                 program_id,
-                b"Server",
+                "Server",
                 server.key,
                 server_state.administrators,
             )?;
@@ -334,6 +334,31 @@ impl Processor {
         }
     }
 
+    fn remove_admin<'a>(
+        program_id: &Pubkey,
+        owner: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        admin: &AccountInfo<'a>,
+        admin_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        let mut server_data = server.try_borrow_mut_data()?;
+        let mut server_state = Server::deserialize_const(&server_data)?;
+        if server_state.owner == *owner.key {
+            let last_key = crate::program::create_index_with_seed(
+                &crate::id(),
+                ServerAdministrator::SEED,
+                server.key,
+                server_state.administrators,
+            )?;
+            if last_key == *admin_last.key {
+                swap_last::<ServerAdministrator>(admin, admin_last)?;
+                server_state.administrators = server_state.administrators.error_decrement()?;
+            }
+        }
+
+        Ok(())
+    }
+
     fn revoke_invite_server<'a>(
         program_id: &Pubkey,
         admin: &AccountInfo<'a>,
@@ -348,7 +373,6 @@ impl Processor {
         let mut server_state = Server::deserialize_const(&server_data)?;
 
         swap_last::<ServerMemberStatus>(member_status, member_status_last)?;
-
         server_state.member_statuses = server_state.member_statuses.error_decrement()?;
 
         Ok(())
@@ -368,7 +392,7 @@ impl Processor {
 
             let administrator_key = create_index_with_seed(
                 program_id,
-                b"Server",
+                "Server",
                 server.key,
                 server_administrator_state.index,
             )?;
@@ -379,7 +403,7 @@ impl Processor {
 
                 let member_status_key = create_index_with_seed(
                     program_id,
-                    b"Server",
+                    "Server",
                     server.key,
                     server_state.member_statuses,
                 )?;
@@ -642,7 +666,15 @@ impl Processor {
 
             Instruction::AddChannelToGroup => todo!(),
             Instruction::RemoveChannelFromGroup => todo!(),
-            Instruction::RemoveAdmin => todo!(),
+            Instruction::RemoveAdmin => {
+                msg!("Instruction: RemoveAdmin");
+                match accounts {
+                    [owner, server, admin, admin_last, ..] => {
+                        Self::remove_admin(program_id, owner, server, admin, admin_last)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
             Instruction::JoinServer => todo!(),
             Instruction::LeaveServer => todo!(),
             Instruction::RevokeInviteServer => {

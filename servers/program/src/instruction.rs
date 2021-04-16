@@ -127,7 +127,7 @@ pub enum Instruction {
 
     /// Accounts:
     ///   - writeable         server     
-    ///   - read signer      dweller
+    ///   - read signer       dweller
     ///   - writeable         dweller_server
     ///   - writeable         server_member
     JoinServer,
