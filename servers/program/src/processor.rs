@@ -730,19 +730,6 @@ impl Processor {
                 }
             }
 
-            Instruction::DeleteChannel => {
-                msg!("Instruction: DeleteChannel");
-
-                todo!()
-            }
-
-            Instruction::DeleteGroup => {
-                msg!("Instruction: DeleteGroup");
-                todo!()
-            }
-
-            Instruction::AddChannelToGroup => todo!(),
-            Instruction::RemoveChannelFromGroup => todo!(),
             Instruction::RemoveAdmin => {
                 msg!("Instruction: RemoveAdmin");
                 match accounts {
@@ -752,8 +739,7 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
-            Instruction::JoinServer => todo!(),
-            Instruction::LeaveServer => todo!(),
+
             Instruction::RevokeInviteServer => {
                 msg!("Instruction: RevokeInviteServer");
                 match accounts {
@@ -794,7 +780,120 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
+            Instruction::DeleteChannel => {
+                msg!("Instruction: DeleteChannel");
+
+                todo!()
+            }
+
+            Instruction::DeleteGroup => {
+                msg!("Instruction: DeleteGroup");
+                todo!()
+            }
+
+            Instruction::JoinServer => {
+                msg!("Instruction: JoinServer");
+                match accounts {
+                    [server, dweller, dweller_server, server_member, server_member_status, ..] => {
+                        Self::join_server(
+                            program_id,
+                            server,
+                            dweller,
+                            dweller_server,
+                            server_member,
+                            server_member_status,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::LeaveServer => todo!(),
+            Instruction::AddChannelToGroup => todo!(),
+            Instruction::RemoveChannelFromGroup => todo!(),
         }
+    }
+
+    fn join_server<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
+        server_member: &AccountInfo<'a>,
+        server_member_status: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut dweller_data = dweller.try_borrow_mut_data()?;
+            let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
+
+            let dweller_server_key = create_index_with_seed(
+                program_id,
+                DwellerServer::SEED,
+                dweller.key,
+                dweller_state.servers,
+            )?;
+
+            if dweller_server_key == *dweller_server.key {
+                let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
+                let mut dweller_server_state =
+                    DwellerServer::deserialize_const(&dweller_server_data)?;
+                if dweller_server_state.version == StateVersion::Uninitialized {
+                    let server_member_status_state: ServerMemberStatus =
+                        server_member_status.read_data_with_borsh()?;
+
+                    let server_member_status_key = create_index_with_seed(
+                        program_id,
+                        ServerMemberStatus::SEED,
+                        server.key,
+                        server_member_status_state.index,
+                    )?;
+
+                    if server_member_status_key == *server_member_status.key
+                        && server_member_status_state.dweller == *dweller.key
+                        && server_member_status_state.container == *server.key
+                    {
+                        let mut server_data = server.try_borrow_mut_data()?;
+                        let mut server_state = Server::deserialize_const(&server_data)?;
+
+                        let server_member_key = create_index_with_seed(
+                            program_id,
+                            ServerMember::SEED,
+                            server.key,
+                            server_state.members,
+                        )?;
+
+                        if server_member_key == *server_member.key {
+                            let mut server_member_data = server_member.try_borrow_mut_data()?;
+                            let mut server_member_state =
+                                ServerMember::deserialize_const(&server_member_data)?;
+
+                            if server_member_state.version == StateVersion::Uninitialized {
+                                server_member_state.version = StateVersion::V1;
+                                server_member_state.container = *server.key;
+                                server_member_state.index = server_state.members;
+                                server_member_state.dweller = *dweller.key;
+
+                                dweller_server_state.container = *dweller.key;
+                                dweller_server_state.index = dweller_state.servers;
+                                dweller_server_state.version = StateVersion::V1;
+
+                                dweller_state.servers = dweller_state.servers.error_increment()?;
+
+                                server_state.members = server_state.members.error_decrement()?;
+
+                                server_state.serialize_const(&mut server_data);
+                                server_member_state.serialize_const(&mut server_member_data);
+                                dweller_server_state.serialize_const(&mut dweller_server_data);
+                                dweller_state.serialize_const(&mut dweller_data);
+
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(Error::Failed.into())
     }
 }
 

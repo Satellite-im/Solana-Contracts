@@ -9,6 +9,8 @@ use solana_program::{
 /// Errors that may be returned by the program.
 #[derive(Clone, Debug, Eq, thiserror::Error, FromPrimitive, PartialEq)]
 pub enum Error {
+    #[error("Cannot execute instruction")]
+    Failed,
     #[error("Only owner can add remove admins")]
     OnlyOwnerCanAddRemoveAdmins,
 

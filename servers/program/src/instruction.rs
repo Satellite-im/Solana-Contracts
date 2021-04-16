@@ -130,6 +130,7 @@ pub enum Instruction {
     ///   - read signer       dweller
     ///   - writeable         dweller_server
     ///   - writeable         server_member
+    ///   - read              server_member_status
     JoinServer,
 
     /// accounts:
