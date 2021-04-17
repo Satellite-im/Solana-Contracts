@@ -180,6 +180,7 @@ pub enum AddressTypeInput {
     DwellerServer(u64),
     ServerMemberStatus(u64),
     ServerMember(u64),
+    ServerAdministrator(u64),
     ServerChannel(u64),
     ServerGroup(u64),
     GroupChannel(u64),

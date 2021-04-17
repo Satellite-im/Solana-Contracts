@@ -533,6 +533,17 @@ impl Processor {
                 ServerMemberStatus::LEN,
                 program_id,
             ),
+            AddressTypeInput::ServerAdministrator(index) => create_seeded_rent_except_account(
+                ServerAdministrator::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerAdministrator::LEN,
+                program_id,
+            ),
             AddressTypeInput::ServerMember(index) => create_seeded_rent_except_account(
                 ServerMember::SEED,
                 owner_account_info,

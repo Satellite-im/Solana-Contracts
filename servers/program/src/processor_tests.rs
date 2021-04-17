@@ -178,31 +178,72 @@ async fn flow() {
     assert_eq!(server_state.owner, dweller_owner.pubkey());
     assert_eq!(server_state.members, 1);
 
-    // let mut server_groups = Vec::new();
-    // for index in (0u64..3) {
-    //     let address_type = instruction::AddressTypeInput::ServerGroup(index);
-    //     let seed = ServerGroup::SEED;
+    let mut server_groups = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerGroup(index);
+        let seed = ServerGroup::SEED;
 
-    //     let address_to_create = create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type).await;
-    //     server_groups.push(address_to_create);
-    //     let account_state: ServerGroup =
-    //         get_account_data(&mut blockchain, &address_to_create).await;
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        server_groups.push(address_to_create);
+        let account_state: ServerGroup =
+            get_account_data(&mut blockchain, &address_to_create).await;
 
-    //     assert_eq!(account_state.container, Pubkey::default(),);
-    // }
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
 
-    // let mut server_сhannels = Vec::new();
-    // let mut server_administrators = Vec::new();
+    let mut server_channels = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerChannel(index);
+        let seed = ServerChannel::SEED;
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        server_channels.push(address_to_create);
+        let account_state: ServerChannel =
+            get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
 
-    // let mut server_member_statues = Vec::new();
-    // let mut group_channels = Vec::new();
+    let mut server_administrators = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerAdministrator(index);
+        let seed = ServerAdministrator::SEED;
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        server_administrators.push(address_to_create);
+        let account_state: ServerAdministrator =
+            get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
 
-    // test_initialize_dweller(&payer, dweller_admin_1, rent, recent_blockhash,&mut blockchain).await;
-    // test_initialize_dweller(&payer, dweller_admin_2, rent, recent_blockhash,&mut blockchain).await;
-    // test_initialize_dweller(&payer, dweller_admin_3, rent, recent_blockhash,&mut blockchain).await;
-    // test_initialize_dweller(&payer, dweller_1, rent, recent_blockhash,&mut blockchain).await;
-    // test_initialize_dweller(&payer, dweller_2, rent, recent_blockhash,&mut blockchain).await;
-    // test_initialize_dweller(&payer, dweller_3, rent, recent_blockhash,&mut blockchain).await;
+    let mut server_member_statues = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerMemberStatus(index);
+        let seed = ServerMemberStatus::SEED;
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        server_member_statues.push(address_to_create);
+        let account_state: ServerMemberStatus =
+            get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
+
+    let mut group_channels = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::GroupChannel(index);
+        let seed = GroupChannel::SEED;
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        group_channels.push(address_to_create);
+        let account_state: GroupChannel =
+            get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
 }
 
 async fn create_derived_account_index(
