@@ -117,6 +117,9 @@ async fn flow() {
 
     for dweller in dwellers.iter() {
         let index = 0;
+        let address_type = instruction::AddressTypeInput::DwellerServer(index);
+        let seed = DwellerServer::SEED;
+
         test_initialize_dweller(
             &blockchain.payer,
             &dweller,
@@ -126,36 +129,73 @@ async fn flow() {
         )
         .await;
 
-        let (address_to_create, base_program_address, ..) =
-            crate::program::create_base_index_with_seed(
-                &id(),
-                DwellerServer::SEED,
-                &dweller.pubkey(),
-                index,
-            )
-            .unwrap();
-
-        test_create_derived_account(
-            &mut blockchain,
-            &dweller.pubkey(),
-            &base_program_address,
-            &address_to_create,
-            instruction::AddressTypeInput::DwellerServer(index),
-        )
-        .await
-        .unwrap();
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, dweller, rent, seed, index, address_type)
+                .await;
 
         let dweller_server: DwellerServer =
             get_account_data(&mut blockchain, &address_to_create).await;
 
-        //assert_eq!(dweller_server.container, Pubkey::default(),);
+        assert_eq!(dweller_server.container, Pubkey::default(),);
 
         dweller_servers.push(address_to_create);
     }
 
     let [dweller_owner, dweller_admin_1, dweller_admin_2, dweller_admin_3, dweller_1, dweller_2, dweller_3] =
         dwellers;
+
+    /// create server
     let server = Keypair::new();
+
+    let mut server_members = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerMember(index);
+        let seed = ServerMember::SEED;
+
+        let address_to_create =
+            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
+                .await;
+        server_members.push(address_to_create);
+        let account_state: ServerMember =
+            get_account_data(&mut blockchain, &address_to_create).await;
+
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
+
+    test_initialize_server(
+        &blockchain.payer,
+        &dweller_owner,
+        &server,
+        &dweller_servers[0],
+        &server_members[0],
+        rent,
+        blockchain.last_blockhash,
+        &mut blockchain.banks_client,
+    )
+    .await;
+
+    let server_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(server_state.owner, dweller_owner.pubkey());
+    assert_eq!(server_state.members, 1);
+
+    // let mut server_groups = Vec::new();
+    // for index in (0u64..3) {
+    //     let address_type = instruction::AddressTypeInput::ServerGroup(index);
+    //     let seed = ServerGroup::SEED;
+
+    //     let address_to_create = create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type).await;
+    //     server_groups.push(address_to_create);
+    //     let account_state: ServerGroup =
+    //         get_account_data(&mut blockchain, &address_to_create).await;
+
+    //     assert_eq!(account_state.container, Pubkey::default(),);
+    // }
+
+    // let mut server_сhannels = Vec::new();
+    // let mut server_administrators = Vec::new();
+
+    // let mut server_member_statues = Vec::new();
+    // let mut group_channels = Vec::new();
 
     // test_initialize_dweller(&payer, dweller_admin_1, rent, recent_blockhash,&mut blockchain).await;
     // test_initialize_dweller(&payer, dweller_admin_2, rent, recent_blockhash,&mut blockchain).await;
@@ -163,6 +203,28 @@ async fn flow() {
     // test_initialize_dweller(&payer, dweller_1, rent, recent_blockhash,&mut blockchain).await;
     // test_initialize_dweller(&payer, dweller_2, rent, recent_blockhash,&mut blockchain).await;
     // test_initialize_dweller(&payer, dweller_3, rent, recent_blockhash,&mut blockchain).await;
+}
+
+async fn create_derived_account_index(
+    blockchain: &mut ProgramTestContext,
+    owner: &Keypair,
+    rent: solana_program::rent::Rent,
+    seed: &str,
+    index: u64,
+    address_type: instruction::AddressTypeInput,
+) -> Pubkey {
+    let (address_to_create, base_program_address, ..) =
+        crate::program::create_base_index_with_seed(&id(), seed, &owner.pubkey(), index).unwrap();
+    test_create_derived_account(
+        blockchain,
+        &owner.pubkey(),
+        &base_program_address,
+        &address_to_create,
+        address_type,
+    )
+    .await
+    .unwrap();
+    address_to_create
 }
 
 async fn test_initialize_dweller(
@@ -207,9 +269,9 @@ async fn test_initialize_server(
         &[
             system_instruction::create_account(
                 &payer.pubkey(),
-                &dweller_owner.pubkey(),
-                rent.minimum_balance(Dweller::LEN as usize),
-                Dweller::LEN as u64,
+                &server.pubkey(),
+                rent.minimum_balance(Server::LEN as usize),
+                Server::LEN as u64,
                 &crate::id(),
             ),
             instruction::initialize_server(
@@ -223,7 +285,7 @@ async fn test_initialize_server(
         ],
         Some(&payer.pubkey()),
     );
-    transaction.sign(&[&payer, dweller_owner], recent_blockhash);
+    transaction.sign(&[&payer, server, dweller_owner], recent_blockhash);
     blockchain.process_transaction(transaction).await.unwrap();
 }
 

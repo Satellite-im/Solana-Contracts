@@ -168,7 +168,7 @@ impl Processor {
 
             let dweller_server_key = create_index_with_seed(
                 program_id,
-                "Dweller",
+                DwellerServer::SEED,
                 dweller_owner.key,
                 dweller_state.servers,
             )?;
@@ -410,7 +410,7 @@ impl Processor {
                 return Ok(());
             }
         }
-            Err(ProgramError::MissingRequiredSignature)        
+        Err(ProgramError::MissingRequiredSignature)
     }
 
     fn revoke_invite_server<'a>(
@@ -494,8 +494,8 @@ impl Processor {
         }
     }
 
-    /// Create derived 
-    #[allow(clippy::too_many_arguments)]    
+    /// Create derived
+    #[allow(clippy::too_many_arguments)]
     pub fn create_derived_address<'a>(
         program_id: &Pubkey,
         payer_account_info: &AccountInfo<'a>,

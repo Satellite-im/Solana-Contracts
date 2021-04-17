@@ -10,12 +10,10 @@ pub trait ErrorAdd {
 
 impl ErrorAdd for u64 {
     fn error_increment(self) -> Result<u64, ProgramError> {
-        self.checked_add(1)
-            .ok_or_else(||Error::Overflow.into())
+        self.checked_add(1).ok_or_else(|| Error::Overflow.into())
     }
 
     fn error_decrement(self) -> Result<u64, ProgramError> {
-        self.checked_sub(1)
-            .ok_or_else(|| Error::Overflow.into())
+        self.checked_sub(1).ok_or_else(|| Error::Overflow.into())
     }
 }
