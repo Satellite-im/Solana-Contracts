@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
 
-//! Sattelite friends solana program
+//! Satellite friends solana program
 
 pub mod error;
 pub mod instruction;
