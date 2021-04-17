@@ -1,0 +1,23 @@
+[package]
+name = "satellite-stickers"
+version = "0.1.0"
+edition = "2018"
+
+[features]
+no-entrypoint = []
+test-bpf = []
+
+[dependencies]
+num-derive = "0.3"
+num-traits = "0.2"
+num_enum = "0.5.1"
+solana-program = "1.6.5"
+thiserror = "1.0"
+borsh = "0.8.2"
+
+[dev-dependencies]
+solana-program-test = "1.6.5"
+solana-sdk = "1.6.5"
+
+[lib]
+crate-type = ["cdylib", "lib"]
