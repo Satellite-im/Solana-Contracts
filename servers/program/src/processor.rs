@@ -1,22 +1,17 @@
 //! Program state processor
 
-use std::mem;
-
 use super::borsh::*;
 use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
     error::Error,
     instruction::*,
-    program::{
-        create_base_index_with_seed, create_index_with_seed, create_seeded_rent_except_account,
-        swap_last_to_default,
-    },
+    program::{create_index_with_seed, create_seeded_rent_except_account, swap_last_to_default},
     state::*,
 };
-use borsh::{BorshSchema, BorshSerialize};
+
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, nonce::State,
-    program_error::ProgramError, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
 };
 
 use super::prelude::*;
@@ -33,7 +28,7 @@ impl Processor {
         let mut state = Dweller::deserialize_const(&data)?;
         if state.version == StateVersion::Uninitialized {
             state.version = StateVersion::V1;
-            state.name = input.name.clone();
+            state.name = input.name;
             state.serialize_const(&mut data)?;
             Ok(())
         } else {
@@ -51,14 +46,14 @@ impl Processor {
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
-                state.name = input.name.clone();
+                state.name = input.name;
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
             }
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -72,14 +67,14 @@ impl Processor {
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
-                state.photo_hash = input.hash.clone();
+                state.photo_hash = input.hash;
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
             }
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -94,14 +89,14 @@ impl Processor {
             let mut state = Server::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
-                state.name = input.name.clone();
+                state.name = input.name;
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
             }
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -116,14 +111,14 @@ impl Processor {
             let mut state = Server::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
-                state.db_hash = input.hash.clone();
+                state.db_hash = input.hash;
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
             }
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -137,14 +132,14 @@ impl Processor {
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
                 state.version = StateVersion::V1;
-                state.status = input.status.clone();
+                state.status = input.status;
                 state.serialize_const(&mut data)?;
                 Ok(())
             } else {
                 Err(ProgramError::UninitializedAccount)
             }
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -163,7 +158,7 @@ impl Processor {
         let mut server_state = Server::deserialize_const(&server_data)?;
 
         if server_state.version == StateVersion::Uninitialized {
-            server_state.name = input.name.clone();
+            server_state.name = input.name;
             let server_member_key = create_index_with_seed(
                 program_id,
                 ServerMember::SEED,
@@ -198,7 +193,7 @@ impl Processor {
 
                 server_state.members = server_state.members.error_increment()?;
 
-                server_state.name = input.name.clone();
+                server_state.name = input.name;
 
                 dweller_state.servers = dweller_state.servers.error_increment()?;
 
@@ -258,7 +253,7 @@ impl Processor {
                         if server_channel_key == *server_channel.key {
                             channel_state.version = StateVersion::V1;
                             channel_state.container = *server.key;
-                            channel_state.name = input.name.clone();
+                            channel_state.name = input.name;
                             server_state.channels = server_state.channels.error_increment()?;
 
                             channel_state.index = server_state.groups;
@@ -324,7 +319,7 @@ impl Processor {
 
                         if channel_key == *server_group.key {
                             group_state.container = *server.key;
-                            group_state.name = input.name.clone();
+                            group_state.name = input.name;
                             group_state.version = StateVersion::V1;
                             server_state.groups = server_state.groups.error_increment()?;
 
@@ -394,13 +389,13 @@ impl Processor {
     }
 
     fn remove_admin<'a>(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         owner: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         admin: &AccountInfo<'a>,
         admin_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        let mut server_data = server.try_borrow_mut_data()?;
+        let server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
         if server_state.owner == *owner.key && owner.is_signer {
             let last_key = crate::program::create_index_with_seed(
@@ -415,13 +410,12 @@ impl Processor {
                 return Ok(());
             }
         }
-
-        return Err(ProgramError::MissingRequiredSignature);
+            Err(ProgramError::MissingRequiredSignature)        
     }
 
     fn revoke_invite_server<'a>(
-        program_id: &Pubkey,
-        admin: &AccountInfo<'a>,
+        _program_id: &Pubkey,
+        _admin: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         member_status: &AccountInfo<'a>,
         member_status_last: &AccountInfo<'a>,
@@ -429,7 +423,7 @@ impl Processor {
         // TODO: validate admin is admin of the server and signer
         // TODO: validate derived addresses are correct (read to get index etc)
 
-        let mut server_data = server.try_borrow_mut_data()?;
+        let server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
 
         crate::program::swap_last_to_default::<ServerMemberStatus>(
@@ -500,7 +494,8 @@ impl Processor {
         }
     }
 
-    /// Create derived address
+    /// Create derived 
+    #[allow(clippy::too_many_arguments)]    
     pub fn create_derived_address<'a>(
         program_id: &Pubkey,
         payer_account_info: &AccountInfo<'a>,
@@ -917,7 +912,7 @@ impl Processor {
         server_channel_last: &AccountInfo<'a>,
         group_channels: &[AccountInfo<'a>],
     ) -> ProgramResult {
-        requireAdmin(dweller, server, server_administrator)?;
+        require_admin(dweller, server, server_administrator)?;
 
         let channel_state = server_group.read_data_with_borsh::<ServerGroup>()?;
         let group_key = create_index_with_seed(
@@ -945,7 +940,7 @@ impl Processor {
 
             let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
             state.groups = state.groups.error_decrement()?;
-            state.serialize_const(&mut data);
+            state.serialize_const(&mut data)?;
 
             return Ok(());
         }
@@ -961,7 +956,7 @@ impl Processor {
         server_channel: &AccountInfo<'a>,
         server_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        requireAdmin(dweller, server, server_administrator)?;
+        require_admin(dweller, server, server_administrator)?;
 
         let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
 
@@ -976,7 +971,7 @@ impl Processor {
 
             let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
             state.channels = state.channels.error_decrement()?;
-            state.serialize_const(&mut data);
+            state.serialize_const(&mut data)?;
 
             return Ok(());
         }
@@ -984,17 +979,18 @@ impl Processor {
         Err(Error::Failed.into())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn remove_channel_from_group<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
         dweller: &AccountInfo<'a>,
         server_admin: &AccountInfo<'a>,
-        channel: &AccountInfo<'a>,
+        _channel: &AccountInfo<'a>,
         group: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
         group_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        requireAdmin(dweller, server, server_admin)?;
+        require_admin(dweller, server, server_admin)?;
 
         let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
         let group_channel_key = create_index_with_seed(
@@ -1009,7 +1005,7 @@ impl Processor {
             let (mut group_data, mut group_state) =
                 group.read_data_with_borsh_mut::<ServerGroup>()?;
             group_state.channels = group_state.channels.error_decrement()?;
-            group_state.serialize_const(&mut group_data);
+            group_state.serialize_const(&mut group_data)?;
 
             return Ok(());
         }
@@ -1026,7 +1022,7 @@ impl Processor {
         group_channel: &AccountInfo<'a>,
         channel: &AccountInfo<'a>,
     ) -> ProgramResult {
-        requireAdmin(dweller, server, server_admin)?;
+        require_admin(dweller, server, server_admin)?;
 
         let (mut group_data, mut group_state) = server.read_data_with_borsh_mut::<ServerGroup>()?;
 
@@ -1041,7 +1037,7 @@ impl Processor {
                 group_channel.read_data_with_borsh_mut::<GroupChannel>()?;
 
             if group_channel_state.version == StateVersion::Uninitialized {
-                group_channel_state.container == *server.key;
+                group_channel_state.container = *server.key;
                 group_channel_state.index = group_state.channels;
                 group_channel_state.channel = *channel.key;
 
@@ -1152,10 +1148,10 @@ impl Processor {
 
                                 server_state.members = server_state.members.error_decrement()?;
 
-                                server_state.serialize_const(&mut server_data);
-                                server_member_state.serialize_const(&mut server_member_data);
-                                dweller_server_state.serialize_const(&mut dweller_server_data);
-                                dweller_state.serialize_const(&mut dweller_data);
+                                server_state.serialize_const(&mut server_data)?;
+                                server_member_state.serialize_const(&mut server_member_data)?;
+                                dweller_server_state.serialize_const(&mut dweller_server_data)?;
+                                dweller_state.serialize_const(&mut dweller_data)?;
 
                                 return Ok(());
                             }
@@ -1169,7 +1165,7 @@ impl Processor {
     }
 }
 
-fn requireAdmin(
+fn require_admin(
     dweller: &AccountInfo,
     server: &AccountInfo,
     server_admin: &AccountInfo,
@@ -1194,7 +1190,7 @@ fn remove_server_member(
 ) -> Result<(), ProgramError> {
     let mut server_data = server.try_borrow_mut_data()?;
     let mut server_state = Server::deserialize_const(&server_data)?;
-    let mut server_member_state: ServerMember = server_member.read_data_with_borsh()?;
+    let server_member_state: ServerMember = server_member.read_data_with_borsh()?;
     if server_member_state.container == *server.key && server_member_state.dweller == *dweller.key {
         let server_member_key = create_index_with_seed(
             program_id,
@@ -1209,7 +1205,7 @@ fn remove_server_member(
                 server_member_last,
             )?;
             server_state.members = server_state.members.error_decrement()?;
-            server_state.serialize_const(&mut server_data);
+            server_state.serialize_const(&mut server_data)?;
             return Ok(());
         }
     }
@@ -1226,7 +1222,7 @@ fn remove_dweller_server(
 ) -> Result<(), ProgramError> {
     let mut dweller_data = dweller.try_borrow_mut_data()?;
     let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
-    let mut dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
+    let dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
     if dweller_server_state.server == *server.key && dweller_server_state.container == *dweller.key
     {
         let dweller_server_key = create_index_with_seed(
@@ -1243,7 +1239,7 @@ fn remove_dweller_server(
             )?;
             dweller_state.servers = dweller_state.servers.error_decrement()?;
 
-            dweller_state.serialize_const(&mut dweller_data);
+            dweller_state.serialize_const(&mut dweller_data)?;
             return Ok(());
         }
     }

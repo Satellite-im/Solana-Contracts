@@ -1,5 +1,8 @@
 #![cfg(feature = "test-bpf")]
 
+use std::ops::Range;
+
+use borsh::BorshDeserialize;
 use solana_program::{pubkey::Pubkey, system_instruction};
 use solana_program_test::*;
 use solana_sdk::{
@@ -52,7 +55,7 @@ pub async fn test_create_derived_account(
 }
 
 #[tokio::test]
-async fn test_create_address() {
+async fn test_create_derived_dweller_account() {
     let mut program_context = program_test().start_with_context().await;
     let rent = program_context.banks_client.get_rent().await.unwrap();
 
@@ -67,12 +70,13 @@ async fn test_create_address() {
     )
     .await;
 
+    let index = 0;
     let (address_to_create, base_program_address, ..) =
         crate::program::create_base_index_with_seed(
             &id(),
             DwellerServer::SEED,
             &dweller.pubkey(),
-            1,
+            index,
         )
         .unwrap();
 
@@ -81,7 +85,7 @@ async fn test_create_address() {
         &dweller.pubkey(),
         &base_program_address,
         &address_to_create,
-        instruction::AddressTypeInput::DwellerServer(1),
+        instruction::AddressTypeInput::DwellerServer(index),
     )
     .await
     .unwrap();
@@ -94,28 +98,64 @@ async fn test_create_address() {
     );
 }
 
-//#[tokio::test]
+#[tokio::test]
 async fn flow() {
-    let (mut blockchain, payer, recent_blockhash) = program_test().start().await;
-    let rent = blockchain.get_rent().await.unwrap();
+    let mut blockchain = program_test().start_with_context().await;
+    let rent = blockchain.banks_client.get_rent().await.unwrap();
 
-    let dweller_owner = Keypair::new();
-    let dweller_admin_1 = Keypair::new();
-    let dweller_admin_2 = Keypair::new();
-    let dweller_admin_3 = Keypair::new();
-    let dweller_1 = Keypair::new();
-    let dweller_2 = Keypair::new();
-    let dweller_3 = Keypair::new();
+    /// create_dwellers
+    let dwellers = [
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+    ];
+    let mut dweller_servers = Vec::new();
+
+    for dweller in dwellers.iter() {
+        let index = 0;
+        test_initialize_dweller(
+            &blockchain.payer,
+            &dweller,
+            rent,
+            blockchain.last_blockhash,
+            &mut blockchain.banks_client,
+        )
+        .await;
+
+        let (address_to_create, base_program_address, ..) =
+            crate::program::create_base_index_with_seed(
+                &id(),
+                DwellerServer::SEED,
+                &dweller.pubkey(),
+                index,
+            )
+            .unwrap();
+
+        test_create_derived_account(
+            &mut blockchain,
+            &dweller.pubkey(),
+            &base_program_address,
+            &address_to_create,
+            instruction::AddressTypeInput::DwellerServer(index),
+        )
+        .await
+        .unwrap();
+
+        let dweller_server: DwellerServer =
+            get_account_data(&mut blockchain, &address_to_create).await;
+
+        //assert_eq!(dweller_server.container, Pubkey::default(),);
+
+        dweller_servers.push(address_to_create);
+    }
+
+    let [dweller_owner, dweller_admin_1, dweller_admin_2, dweller_admin_3, dweller_1, dweller_2, dweller_3] =
+        dwellers;
     let server = Keypair::new();
-
-    test_initialize_dweller(
-        &payer,
-        &dweller_owner,
-        rent,
-        recent_blockhash,
-        &mut blockchain,
-    )
-    .await;
 
     // test_initialize_dweller(&payer, dweller_admin_1, rent, recent_blockhash,&mut blockchain).await;
     // test_initialize_dweller(&payer, dweller_admin_2, rent, recent_blockhash,&mut blockchain).await;
@@ -194,4 +234,15 @@ pub async fn get_account(program_context: &mut ProgramTestContext, pubkey: &Pubk
         .await
         .expect("account not found")
         .expect("account empty")
+}
+
+pub async fn get_account_data<T: BorshDeserialize>(
+    program_context: &mut ProgramTestContext,
+    pubkey: &Pubkey,
+) -> T {
+    program_context
+        .banks_client
+        .get_account_data_with_borsh(*pubkey)
+        .await
+        .expect("account not found")
 }

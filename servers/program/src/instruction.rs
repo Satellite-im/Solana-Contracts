@@ -22,11 +22,12 @@ pub enum Instruction {
     ///  [InitializeDwellerInput]
     InitializeDweller,
 
+    /// Initializes server and joins dweller_owner
     /// accounts
-    /// - signer, write     dweller_owner  will join server during init
-    /// - signer, write     server
-    /// - write             dweller_server
-    /// - write             server_member
+    /// - signer,  write          dweller_owner
+    /// - signer,  write          server
+    /// - derived, write          dweller_server
+    /// - derived, write          server_member
     /// Input: [InitializeServerInput]
     InitializeServer,
 

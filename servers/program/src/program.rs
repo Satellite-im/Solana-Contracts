@@ -4,14 +4,10 @@ use borsh::BorshSerialize;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
-    nonce::State,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::{Pubkey, PubkeyError},
     rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
 };
 
 /// implements program seed public key address as indexed list pattern
@@ -42,8 +38,9 @@ pub fn create_index_with_seed(
     Ok(create)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_derived_account<'a>(
-    funder: AccountInfo<'a>,
+    payer: AccountInfo<'a>,
     account_to_create: AccountInfo<'a>,
     base: AccountInfo<'a>,
     seed: &str,
@@ -54,7 +51,7 @@ pub fn create_derived_account<'a>(
 ) -> ProgramResult {
     solana_program::program::invoke_signed(
         &system_instruction::create_account_with_seed(
-            &funder.key,
+            &payer.key,
             &account_to_create.key,
             &base.key,
             seed,
@@ -62,7 +59,7 @@ pub fn create_derived_account<'a>(
             space,
             owner,
         ),
-        &[funder.clone(), account_to_create.clone(), base.clone()],
+        &[payer.clone(), account_to_create.clone(), base.clone()],
         &[&signer_seeds],
     )
 }
@@ -81,6 +78,7 @@ pub fn swap_last_to_default<T: Default + BorshSerialize>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_seeded_rent_except_account<'a>(
     seed: &str,
     owner_account_info: &AccountInfo<'a>,

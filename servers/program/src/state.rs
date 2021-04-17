@@ -47,7 +47,7 @@ pub struct Dweller {
 }
 
 impl Dweller {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 137;
 }
 
 /// Mapping of `Dweller` to `Server`.
@@ -64,7 +64,7 @@ pub struct DwellerServer {
 }
 
 impl DwellerServer {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 73;
     pub const SEED: &'static str = "DwellerServer";
 }
 
@@ -84,7 +84,7 @@ pub struct ServerMember {
 }
 
 impl ServerMember {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 73;
     pub const SEED: &'static str = "ServerMember";
 }
 
@@ -100,7 +100,7 @@ pub struct ServerMemberStatus {
 }
 
 impl ServerMemberStatus {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 73;
     pub const SEED: &'static str = "ServerMemberStatus";
 }
 
@@ -116,7 +116,7 @@ pub struct ServerAdministrator {
 }
 
 impl ServerAdministrator {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 73;
     pub const SEED: &'static str = "ServerAdministrator";
 }
 
@@ -146,7 +146,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub const LEN: u64 = 1000;
+    pub const LEN: u64 = 233;
 }
 
 #[repr(C)]
@@ -163,7 +163,7 @@ pub struct ServerChannel {
 }
 
 impl ServerChannel {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 74;
     pub const SEED: &'static str = "ServerChannel";
 }
 
@@ -181,7 +181,7 @@ pub struct ServerGroup {
 }
 
 impl ServerGroup {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 81;
     pub const SEED: &'static str = "ServerGroup";
 }
 
@@ -197,6 +197,51 @@ pub struct GroupChannel {
 }
 
 impl GroupChannel {
-    pub const LEN: u64 = 300;
+    pub const LEN: u64 = 73;
     pub const SEED: &'static str = "GroupChannel";
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn len() {
+        assert_eq!(
+            DwellerServer::LEN,
+            solana_program::borsh::get_packed_len::<DwellerServer>() as u64
+        );
+        assert_eq!(
+            Dweller::LEN,
+            solana_program::borsh::get_packed_len::<Dweller>() as u64
+        );
+        assert_eq!(
+            Server::LEN,
+            solana_program::borsh::get_packed_len::<Server>() as u64
+        );
+        assert_eq!(
+            ServerAdministrator::LEN,
+            solana_program::borsh::get_packed_len::<ServerAdministrator>() as u64
+        );
+        assert_eq!(
+            ServerChannel::LEN,
+            solana_program::borsh::get_packed_len::<ServerChannel>() as u64
+        );
+        assert_eq!(
+            ServerGroup::LEN,
+            solana_program::borsh::get_packed_len::<ServerGroup>() as u64
+        );
+        assert_eq!(
+            ServerMember::LEN,
+            solana_program::borsh::get_packed_len::<ServerMember>() as u64
+        );
+        assert_eq!(
+            ServerMemberStatus::LEN,
+            solana_program::borsh::get_packed_len::<ServerMemberStatus>() as u64
+        );
+        assert_eq!(
+            GroupChannel::LEN,
+            solana_program::borsh::get_packed_len::<GroupChannel>() as u64
+        );
+    }
 }
