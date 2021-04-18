@@ -206,4 +206,22 @@ pub fn buy_sticker(
     })
 }
 
-// TODO: change sticker price
+/// Create `ChangeStickerPrice` instruction
+pub fn change_sticker_price(
+    program_id: &Pubkey,
+    sticker: &Pubkey,
+    creator: &Pubkey,
+    new_price: u64,
+) -> Result<Instruction, ProgramError> {
+    let init_data = StickerInstruction::ChangeStickerPrice(new_price);
+    let data = init_data.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*sticker, false),
+        AccountMeta::new_readonly(*creator, true),
+    ];
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}

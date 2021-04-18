@@ -272,7 +272,6 @@ impl Processor {
             return Err(StickerProgramError::WrongTokenMintAuthority.into());
         }
 
-
         Self::transfer(
             token_program_id.clone(),
             buyer_token_account_info.clone(),
@@ -290,7 +289,7 @@ impl Processor {
             mint_authority.clone(),
             sticker_to_buy_account_info.key,
             bump_seed,
-            *sticker_to_buy_account_info.key,  // TODO: ask bout it
+            *sticker_to_buy_account_info.key, // TODO: ask bout it
             sticker.uri,
         )?;
 
@@ -301,12 +300,26 @@ impl Processor {
     pub fn process_change_sticker_price_instruction(
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
-        _new_price: u64,
+        new_price: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let sticker_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
 
-        Ok(())
+        let mut sticker = Sticker::try_from_slice(&sticker_account_info.data.borrow())?;
+        if !sticker.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if *creator_account_info.key != sticker.creator || !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        sticker.price = new_price;
+
+        sticker
+            .serialize(&mut *sticker_account_info.data.borrow_mut())
+            .map_err(|e| e.into())
     }
 
     /// Create new account
