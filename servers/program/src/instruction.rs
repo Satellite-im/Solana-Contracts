@@ -129,18 +129,18 @@ pub enum Instruction {
 
     /// Accounts:
     ///   - writeable                  server     
-    ///   - read signer                dweller
-    ///   - writeable, derived         dweller_server
     ///   - writeable, derived         server_member
     ///   - read, derived              server_member_status
+    ///   - writeable signer           dweller
+    ///   - writeable, derived         dweller_server
     JoinServer,
 
     /// Accounts:
     ///
-    /// - write, signer              dweller
     /// - write                      server
     /// - write, derived             server_member
     /// - write, derived             server_member_last
+    /// - write, signer              dweller
     /// - write, derived             dweller_server
     /// - write, derived             dweller_server_last
     LeaveServer,
@@ -527,8 +527,8 @@ pub fn add_admin(
     })
 }
 
-/// [Instruction::remove_admin]
-pub fn RemoveAdmin(
+/// [Instruction::RemoveAdmin]
+pub fn remove_admin(
     owner: &Pubkey,
     server: &Pubkey,
     server_administrator: &Pubkey,
@@ -549,23 +549,55 @@ pub fn RemoveAdmin(
     })
 }
 
-// /// Accounts:
-// ///   - writeable         server
-// ///   - read signer       dweller
-// ///   - writeable         dweller_server
-// ///   - writeable         server_member
-// ///   - read              server_member_status
-// JoinServer,
+/// [Instruction::JoinServer]
+pub fn join_server(
+    server: &Pubkey,
+    server_member: &Pubkey,
+    server_member_status: &Pubkey,
+    dweller: &Pubkey,
+    dweller_server: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::JoinServer.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_member, false),
+        AccountMeta::new_readonly(*server_member_status, false),
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new(*dweller_server, false),
+    ];
 
-// /// Accounts:
-// ///
-// /// - write, signer     dweller
-// /// - write             server
-// /// - write             server_member
-// /// - write             server_member_last
-// /// - write             dweller_server
-// /// - write             dweller_server_last
-// LeaveServer,
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
+
+/// [Instruction::LeaveServer]
+pub fn leave_server(
+    server: &Pubkey,
+    server_member: &Pubkey,
+    server_member_last: &Pubkey,
+    dweller: &Pubkey,
+    dweller_server: &Pubkey,
+    dweller_server_last: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::LeaveServer.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_member, false),
+        AccountMeta::new(*server_member_last, false),
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new(*dweller_server, false),
+        AccountMeta::new(*dweller_server_last, false),
+    ];
+
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
 
 // /// Accounts:
 // /// - write             server

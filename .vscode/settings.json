@@ -1,6 +1,11 @@
 {
     "cSpell.words": [
         "Satellite",
-        "satellite"
+        "borsh",
+        "entrypoint",
+        "pubkey",
+        "satellite",
+        "solana",
+        "sysvar"
     ]
 }

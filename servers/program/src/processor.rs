@@ -807,14 +807,14 @@ impl Processor {
             Instruction::JoinServer => {
                 msg!("Instruction: JoinServer");
                 match accounts {
-                    [server, dweller, dweller_server, server_member, server_member_status, ..] => {
+                    [server, server_member, server_member_status, dweller, dweller_server, ..] => {
                         Self::join_server(
                             program_id,
                             server,
-                            dweller,
-                            dweller_server,
                             server_member,
                             server_member_status,
+                            dweller,
+                            dweller_server,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
@@ -824,13 +824,13 @@ impl Processor {
             Instruction::LeaveServer => {
                 msg!("Instruction: LeaveServer");
                 match accounts {
-                    [dweller, server, server_member, server_member_last, dweller_server, dweller_server_last, ..] => {
+                    [server, server_member, server_member_last, dweller, dweller_server, dweller_server_last, ..] => {
                         Self::leave_server(
                             program_id,
-                            dweller,
                             server,
                             server_member,
                             server_member_last,
+                            dweller,
                             dweller_server,
                             dweller_server_last,
                         )
@@ -1064,10 +1064,10 @@ impl Processor {
 
     fn leave_server<'a>(
         program_id: &Pubkey,
-        dweller: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         server_member: &AccountInfo<'a>,
         server_member_last: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
         dweller_server: &AccountInfo<'a>,
         dweller_server_last: &AccountInfo<'a>,
     ) -> ProgramResult {
@@ -1095,10 +1095,10 @@ impl Processor {
     fn join_server<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
-        dweller: &AccountInfo<'a>,
-        dweller_server: &AccountInfo<'a>,
         server_member: &AccountInfo<'a>,
         server_member_status: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
     ) -> ProgramResult {
         if dweller.is_signer {
             let mut dweller_data = dweller.try_borrow_mut_data()?;
