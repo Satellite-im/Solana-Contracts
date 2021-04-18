@@ -11,29 +11,37 @@ use thiserror::Error;
 
 /// Errors that may be returned by the Template program.
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
-pub enum ProgramTemplateError {
-    /// Example error
-    #[error("Example error")]
-    ExampleError,
+pub enum StickerProgramError {
+    /// Wrong mint for user token account
+    #[error("Wrong mint for user token account")]
+    WrongTokenMint,
+    /// Wrong sticker factory owner
+    #[error("Wrong sticker factory owner")]
+    WrongStickerFactoryOwner,
+    /// Calculation error
+    #[error("Calculation error")]
+    CalculationError,
 }
-impl From<ProgramTemplateError> for ProgramError {
-    fn from(e: ProgramTemplateError) -> Self {
+impl From<StickerProgramError> for ProgramError {
+    fn from(e: StickerProgramError) -> Self {
         ProgramError::Custom(e as u32)
     }
 }
-impl<T> DecodeError<T> for ProgramTemplateError {
+impl<T> DecodeError<T> for StickerProgramError {
     fn type_of() -> &'static str {
-        "ProgramTemplateError"
+        "StickerProgramError"
     }
 }
 
-impl PrintProgramError for ProgramTemplateError {
+impl PrintProgramError for StickerProgramError {
     fn print<E>(&self)
     where
         E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
         match self {
-            ProgramTemplateError::ExampleError => msg!("Example error message"),
+            StickerProgramError::WrongTokenMint => msg!("Wrong mint for user token account"),
+            StickerProgramError::WrongStickerFactoryOwner => msg!("Wrong sticker factory owner"),
+            StickerProgramError::CalculationError => msg!("Calculation error"),
         }
     }
 }

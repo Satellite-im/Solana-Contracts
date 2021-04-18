@@ -5,8 +5,7 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar,
-    system_program,
+    system_program, sysvar,
 };
 
 /// Arguments to create new artist
@@ -54,7 +53,7 @@ pub enum StickerInstruction {
     RegisterArtist(RegisterArtist),
 
     /// CreateNewSticker
-    /// 
+    ///
     ///   0. `[w]` Sticker account
     ///   1. `[w]` Sticker factory
     ///   2. `[r]` Created NFT mint. Authority should be the program address
@@ -64,7 +63,7 @@ pub enum StickerInstruction {
     CreateNewSticker(CreateNewSticker),
 
     /// BuySticker
-    /// 
+    ///
     ///   0. `[r]` Sticker to buy
     ///   1. `[w]` Artist's token account to receive payments
     ///   2. `[w]` Buyer's token account
@@ -76,7 +75,7 @@ pub enum StickerInstruction {
     BuySticker,
 
     /// ChangeStickerPrice
-    /// 
+    ///
     ///   0. `[w]` Sticker
     ///   1. `[rs]` Creator
     ChangeStickerPrice(u64),
@@ -137,7 +136,7 @@ pub fn register_artist(
         AccountMeta::new_readonly(*sticker_factory_owner, true),
         AccountMeta::new(*sticker_factory, false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ];
+    ];
     Ok(Instruction {
         program_id: *program_id,
         accounts,
@@ -164,7 +163,7 @@ pub fn create_new_sticker(
         AccountMeta::new_readonly(*artist, false),
         AccountMeta::new_readonly(*user, true),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ];
+    ];
     Ok(Instruction {
         program_id: *program_id,
         accounts,
@@ -195,7 +194,7 @@ pub fn buy_sticker(
         AccountMeta::new(*nft_token_data, false),
         AccountMeta::new_readonly(*nft_token_mint, false),
         AccountMeta::new_readonly(*nft_token_owner, false),
-        ];
+    ];
     Ok(Instruction {
         program_id: *program_id,
         accounts,
