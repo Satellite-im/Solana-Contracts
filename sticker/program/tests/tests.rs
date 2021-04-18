@@ -1,32 +1,449 @@
 #![cfg(feature = "test-bpf")]
 
+use borsh::de::BorshDeserialize;
+use satellite_stickers::*;
 use solana_program::pubkey::Pubkey;
-use solana_program_template::*;
+use solana_program::{program_pack::Pack, system_instruction};
 use solana_program_test::*;
 use solana_sdk::{
+    account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
+    transport::TransportError,
 };
 
 pub fn program_test() -> ProgramTest {
-    ProgramTest::new(
+    let mut program = ProgramTest::new(
         "satellite_stickers",
         id(),
         processor!(processor::Processor::process_instruction),
-    )
+    );
+    program.add_program("spl_nft_erc_721", spl_nft_erc_721::id(), None);
+    program
+}
+
+pub async fn get_account(program_context: &mut ProgramTestContext, pubkey: &Pubkey) -> Account {
+    program_context
+        .banks_client
+        .get_account(*pubkey)
+        .await
+        .expect("account not found")
+        .expect("account empty")
+}
+
+pub async fn create_account(
+    program_context: &mut ProgramTestContext,
+    account_to_create: &Keypair,
+    lamports: u64,
+    space: u64,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[system_instruction::create_account(
+            &program_context.payer.pubkey(),
+            &account_to_create.pubkey(),
+            lamports,
+            space,
+            &id(),
+        )],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, account_to_create],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn create_token_account(
+    program_context: &mut ProgramTestContext,
+    account: &Keypair,
+    account_rent: u64,
+    mint: &Pubkey,
+    owner: &Pubkey,
+) -> Result<(), TransportError> {
+    let instructions = vec![
+        system_instruction::create_account(
+            &program_context.payer.pubkey(),
+            &account.pubkey(),
+            account_rent,
+            spl_token::state::Account::LEN as u64,
+            &spl_token::id(),
+        ),
+        spl_token::instruction::initialize_account(
+            &spl_token::id(),
+            &account.pubkey(),
+            mint,
+            owner,
+        )
+        .unwrap(),
+    ];
+
+    let mut transaction =
+        Transaction::new_with_payer(&instructions, Some(&program_context.payer.pubkey()));
+
+    transaction.sign(
+        &[&program_context.payer, account],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn create_program_account(
+    program_context: &mut ProgramTestContext,
+    sticker_factory: &Pubkey,
+    base_program_address: &Pubkey,
+    address_to_create: &Pubkey,
+    address_type: instruction::AddressType,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::create_account(
+            &id(),
+            &program_context.payer.pubkey(),
+            sticker_factory,
+            base_program_address,
+            address_to_create,
+            address_type,
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn create_sticker_factory(
+    program_context: &mut ProgramTestContext,
+    sticker_factory: &Keypair,
+    sticker_factory_owner: &Keypair,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::create_sticker_factory(
+            &id(),
+            &sticker_factory.pubkey(),
+            &sticker_factory_owner.pubkey(),
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, sticker_factory_owner],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn register_new_artist(
+    program_context: &mut ProgramTestContext,
+    user: &Pubkey,
+    user_token_acc: &Pubkey,
+    artist_to_create: &Pubkey,
+    sticker_factory_owner: &Keypair,
+    sticker_factory: &Pubkey,
+    args: instruction::RegisterArtist,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::register_artist(
+            &id(),
+            user,
+            user_token_acc,
+            artist_to_create,
+            &sticker_factory_owner.pubkey(),
+            sticker_factory,
+            args,
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, sticker_factory_owner],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
+pub async fn create_new_sticker(
+    program_context: &mut ProgramTestContext,
+    sticker: &Pubkey,
+    sticker_factory: &Pubkey,
+    mint: &Pubkey,
+    artist: &Pubkey,
+    user: &Keypair,
+    args: CreateNewSticker,
+) -> Result<(), TransportError> {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::create_new_sticker(
+            &id(),
+            sticker,
+            sticker_factory,
+            mint,
+            artist,
+            &user.pubkey(),
+            args,
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, user],
+        program_context.last_blockhash,
+    );
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
 }
 
 #[tokio::test]
-async fn test_call_example_instruction() {
-    let (mut banks_client, payer, recent_blockhash) = program_test().start().await;
+async fn test_create_account_instruction() {
+    let mut program_context = program_test().start_with_context().await;
 
-    let new_acc = Keypair::new();
+    let sticker_factory = Keypair::new();
+    let sticker_factory_owner = Keypair::new();
 
-    let mut transaction = Transaction::new_with_payer(
-        &[instruction::init_pool(&id(), &new_acc.pubkey()).unwrap()],
-        Some(&payer.pubkey()),
-    );
+    let rent = program_context.banks_client.get_rent().await.unwrap();
+    let sticker_factory_min_rent = rent.minimum_balance(state::StickerFactory::LEN);
 
-    transaction.sign(&[&payer], recent_blockhash);
-    banks_client.process_transaction(transaction).await.unwrap();
+    create_account(
+        &mut program_context,
+        &sticker_factory,
+        sticker_factory_min_rent,
+        state::StickerFactory::LEN as u64,
+    )
+    .await
+    .unwrap();
+
+    create_sticker_factory(
+        &mut program_context,
+        &sticker_factory,
+        &sticker_factory_owner,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn test_register_artist_instruction() {
+    let mut program_context = program_test().start_with_context().await;
+
+    let sticker_factory = Keypair::new();
+    let sticker_factory_owner = Keypair::new();
+
+    let rent = program_context.banks_client.get_rent().await.unwrap();
+    let sticker_factory_min_rent = rent.minimum_balance(state::StickerFactory::LEN);
+    let token_account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+
+    create_account(
+        &mut program_context,
+        &sticker_factory,
+        sticker_factory_min_rent,
+        state::StickerFactory::LEN as u64,
+    )
+    .await
+    .unwrap();
+
+    create_sticker_factory(
+        &mut program_context,
+        &sticker_factory,
+        &sticker_factory_owner,
+    )
+    .await
+    .unwrap();
+
+    let factory_info_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let factory_info =
+        state::StickerFactory::try_from_slice(&factory_info_data.data.as_slice()).unwrap();
+
+    let (base, _) =
+        Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
+    let address_to_create = Pubkey::create_with_seed(
+        &base,
+        &format!(
+            "{:?}{:?}",
+            factory_info.artist_count,
+            processor::Processor::ARTIST_SEED
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_program_account(
+        &mut program_context,
+        &sticker_factory.pubkey(),
+        &base,
+        &address_to_create,
+        instruction::AddressType::Artist,
+    )
+    .await
+    .unwrap();
+
+    let artist_user = Keypair::new();
+    let artist_token_acc = Keypair::new();
+    let owner = Keypair::new();
+
+    create_token_account(
+        &mut program_context,
+        &artist_token_acc,
+        token_account_rent,
+        &spl_token::native_mint::id(),
+        &owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let artist_data = instruction::RegisterArtist {
+        name: [1; 32],
+        signature: [2; 256],
+        description: [3; 256],
+    };
+    register_new_artist(
+        &mut program_context,
+        &artist_user.pubkey(),
+        &artist_token_acc.pubkey(),
+        &address_to_create,
+        &sticker_factory_owner,
+        &sticker_factory.pubkey(),
+        artist_data,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn test_create_new_sticker_instruction() {
+    let mut program_context = program_test().start_with_context().await;
+
+    let sticker_factory = Keypair::new();
+    let sticker_factory_owner = Keypair::new();
+
+    let rent = program_context.banks_client.get_rent().await.unwrap();
+    let sticker_factory_min_rent = rent.minimum_balance(state::StickerFactory::LEN);
+    let token_account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+
+    create_account(
+        &mut program_context,
+        &sticker_factory,
+        sticker_factory_min_rent,
+        state::StickerFactory::LEN as u64,
+    )
+    .await
+    .unwrap();
+
+    create_sticker_factory(
+        &mut program_context,
+        &sticker_factory,
+        &sticker_factory_owner,
+    )
+    .await
+    .unwrap();
+
+    let factory_info_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let factory_info =
+        state::StickerFactory::try_from_slice(&factory_info_data.data.as_slice()).unwrap();
+
+    let (base, _) =
+        Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
+    let address_to_create = Pubkey::create_with_seed(
+        &base,
+        &format!(
+            "{:?}{:?}",
+            factory_info.artist_count,
+            processor::Processor::ARTIST_SEED
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_program_account(
+        &mut program_context,
+        &sticker_factory.pubkey(),
+        &base,
+        &address_to_create,
+        instruction::AddressType::Artist,
+    )
+    .await
+    .unwrap();
+
+    let artist_user = Keypair::new();
+    let artist_token_acc = Keypair::new();
+    let owner = Keypair::new();
+
+    create_token_account(
+        &mut program_context,
+        &artist_token_acc,
+        token_account_rent,
+        &spl_token::native_mint::id(),
+        &owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let artist_data = instruction::RegisterArtist {
+        name: [1; 32],
+        signature: [2; 256],
+        description: [3; 256],
+    };
+    register_new_artist(
+        &mut program_context,
+        &artist_user.pubkey(),
+        &artist_token_acc.pubkey(),
+        &address_to_create,
+        &sticker_factory_owner,
+        &sticker_factory.pubkey(),
+        artist_data,
+    )
+    .await
+    .unwrap();
+
+    let (base, _) =
+        Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
+    let address_to_create = Pubkey::create_with_seed(
+        &base,
+        &format!(
+            "{:?}{:?}",
+            factory_info.sticker_count,
+            processor::Processor::STICKER_SEED
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_program_account(
+        &mut program_context,
+        &sticker_factory.pubkey(),
+        &base,
+        &address_to_create,
+        instruction::AddressType::Sticker,
+    )
+    .await
+    .unwrap();
+
+    create_new_sticker(
+        &mut program_context,
+        &address_to_create,
+        &sticker_factory.pubkey(),
+        mint: &Pubkey,
+        artist: &Pubkey,
+        user: &Keypair,
+        args: CreateNewSticker,
+    )
+    .await
+    .unwrap();
 }

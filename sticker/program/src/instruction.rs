@@ -62,6 +62,13 @@ pub enum StickerInstruction {
     ///   5. `[r]` Rent
     CreateNewSticker(CreateNewSticker),
 
+    /// CreateStickerFactory
+    ///
+    ///   0. `[w]` Sticker factory
+    ///   1. `[s]` Owner
+    ///   2. `[r]` Rent
+    CreateStickerFactory,
+
     /// BuySticker
     ///
     ///   0. `[r]` Sticker to buy
@@ -162,6 +169,26 @@ pub fn create_new_sticker(
         AccountMeta::new_readonly(*mint, false),
         AccountMeta::new_readonly(*artist, false),
         AccountMeta::new_readonly(*user, true),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+    ];
+    Ok(Instruction {
+        program_id: *program_id,
+        accounts,
+        data,
+    })
+}
+
+/// Create `CreateStickerFactory` instruction
+pub fn create_sticker_factory(
+    program_id: &Pubkey,
+    sticker_factory: &Pubkey,
+    owner: &Pubkey,
+) -> Result<Instruction, ProgramError> {
+    let init_data = StickerInstruction::CreateStickerFactory;
+    let data = init_data.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*sticker_factory, false),
+        AccountMeta::new_readonly(*owner, true),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
     ];
     Ok(Instruction {
