@@ -219,6 +219,20 @@ async fn flow() {
         assert_eq!(account_state.container, Pubkey::default(),);
     }
 
+    test_add_administrator(
+        &blockchain.payer,
+        &dweller_owner,
+        &dweller_admin_1.pubkey(),
+        &server.pubkey(),
+        &server_administrators[0],
+        rent,
+        blockchain.last_blockhash,
+        &mut blockchain.banks_client,
+    )
+    .await;
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+
     let mut server_member_statues = Vec::new();
     for index in (0u64..3) {
         let address_type = instruction::AddressTypeInput::ServerMemberStatus(index);
@@ -290,6 +304,30 @@ async fn test_initialize_dweller(
             )
             .unwrap(),
         ],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[&payer, dweller_owner], recent_blockhash);
+    blockchain.process_transaction(transaction).await.unwrap();
+}
+
+async fn test_add_administrator(
+    payer: &Keypair,
+    dweller_owner: &Keypair,
+    dweller: &Pubkey,
+    server: &Pubkey,
+    server_administrator: &Pubkey,
+    rent: solana_program::rent::Rent,
+    recent_blockhash: solana_program::hash::Hash,
+    blockchain: &mut BanksClient,
+) {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::add_admin(
+            &dweller_owner.pubkey(),
+            dweller,
+            server,
+            server_administrator,
+        )
+        .unwrap()],
         Some(&payer.pubkey()),
     );
     transaction.sign(&[&payer, dweller_owner], recent_blockhash);

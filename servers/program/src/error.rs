@@ -6,15 +6,25 @@ use solana_program::{
     decode_error::DecodeError, msg, program_error::PrintProgramError, program_error::ProgramError,
 };
 
-use strum_macros::AsRefStr;
-
 /// Errors that may be returned by the program.
-#[derive(Clone, Debug, Eq, FromPrimitive, PartialEq, AsRefStr)]
+#[derive(Clone, Debug, Eq, thiserror::Error, FromPrimitive, PartialEq)]
 pub enum Error {
+    #[error("Cannot execute instruction")]
     Failed,
+    #[error("Only owner can add remove admins")]
     OnlyOwnerCanAddRemoveAdmins,
+
+    #[error("Overflow")]
     Overflow,
+
+    #[error("Invalid derived address")]
     InvalidDerivedAddress,
+
+    #[error("Invalid derived server administrator address")]
+    InvalidDerivedServerAdministratorAddress,
+
+    #[error("Provided dweller is not the owner of the server")]
+    ProvidedDwellerIsNotTheOwnerOfTheServer,
 }
 
 impl From<Error> for ProgramError {
@@ -34,6 +44,6 @@ impl PrintProgramError for Error {
     where
         E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
     {
-        msg!(&self.as_ref())
+        msg!(&self.to_string())
     }
 }

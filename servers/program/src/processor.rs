@@ -353,8 +353,9 @@ impl Processor {
         server_administrator: &AccountInfo<'a>,
     ) -> ProgramResult {
         if owner.is_signer {
-            let mut server_data = server.try_borrow_mut_data()?;
-            let mut server_state = Server::deserialize_const(&server_data)?;
+            let (mut server_data, mut server_state) =
+                server.read_data_with_borsh_mut::<Server>()?;
+            require_owner(&server_state, owner)?;
 
             let administrator_key = create_index_with_seed(
                 program_id,
@@ -364,11 +365,11 @@ impl Processor {
             )?;
 
             if administrator_key == *server_administrator.key {
-                let mut server_administrator_data = server_administrator.try_borrow_mut_data()?;
-                let mut server_administrator_state =
-                    ServerAdministrator::deserialize_const(&server_administrator_data)?;
-                if server_administrator_state.dweller == *dweller.key {
+                let (mut server_administrator_data, mut server_administrator_state) =
+                    server_administrator.read_data_with_borsh_mut::<ServerAdministrator>()?;
+                if server_administrator_state.version == StateVersion::Uninitialized {
                     server_administrator_state.container = *server.key;
+                    server_administrator_state.dweller = *dweller.key;
                     server_administrator_state.version = StateVersion::V1;
                     server_state.administrators = server_state.administrators.error_increment()?;
 
@@ -378,10 +379,10 @@ impl Processor {
 
                     Ok(())
                 } else {
-                    Err(Error::InvalidDerivedAddress.into())
+                    Err(ProgramError::AccountAlreadyInitialized)
                 }
             } else {
-                Err(Error::InvalidDerivedAddress.into())
+                Err(Error::InvalidDerivedServerAdministratorAddress.into())
             }
         } else {
             Err(ProgramError::MissingRequiredSignature)
@@ -1173,6 +1174,18 @@ impl Processor {
         }
 
         Err(Error::Failed.into())
+    }
+}
+
+fn require_owner<'a>(server_state: &Server, owner: &AccountInfo<'a>) -> ProgramResult {
+    if owner.is_signer {
+        if server_state.owner == *owner.key {
+            Ok(())
+        } else {
+            Err(Error::ProvidedDwellerIsNotTheOwnerOfTheServer.into())
+        }
+    } else {
+        Err(ProgramError::MissingRequiredSignature)
     }
 }
 
