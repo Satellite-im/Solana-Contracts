@@ -114,9 +114,9 @@ pub enum Instruction {
 
     /// Accounts:
     ///
-    /// - signer    owner of server
-    /// - read      dweller to become admin
-    /// - write     server
+    /// - signer             owner of server
+    /// - read               dweller to become admin
+    /// - write              server
     /// - write, derived     server_administrator
     AddAdmin,
 
@@ -505,20 +505,49 @@ pub fn remove_channel_from_group(
     })
 }
 
-// /// Accounts:
-// ///
-// /// - signer    owner of server
-// /// - read      dweller to become admin
-// /// - write     server
-// /// - write     server_administrator
-// AddAdmin,
+/// [Instruction::AddAdmin]
+pub fn add_admin(
+    owner: &Pubkey,
+    dweller: &Pubkey,
+    server: &Pubkey,
+    server_administrator: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::AddAdmin.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*owner, true),
+        AccountMeta::new(*dweller, false),
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_administrator, false),
+    ];
 
-// /// Accounts:
-// /// - signer    owner
-// /// - write     server
-// /// - write     admin
-// /// - write     admin_last
-// RemoveAdmin,
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
+
+/// [Instruction::remove_admin]
+pub fn RemoveAdmin(
+    owner: &Pubkey,
+    server: &Pubkey,
+    server_administrator: &Pubkey,
+    server_administrator_last: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::RemoveAdmin.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*owner, true),
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_administrator, false),
+        AccountMeta::new(*server_administrator_last, false),
+    ];
+
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
 
 // /// Accounts:
 // ///   - writeable         server
