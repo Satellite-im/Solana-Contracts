@@ -17,6 +17,7 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar::rent::Rent,
     sysvar::Sysvar,
+    system_instruction,
 };
 use spl_nft_erc_721::state::Mint;
 use spl_token::state::Account;
@@ -86,6 +87,31 @@ impl Processor {
                 nft_program_id,
             ],
             signers,
+        )
+    }
+
+    fn create_account<'a>(
+        funder: AccountInfo<'a>,
+        account_to_create: AccountInfo<'a>,
+        base: AccountInfo<'a>,
+        seed: &str,
+        required_lamports: u64,
+        space: u64,
+        owner: &Pubkey,
+        signer_seeds: &[&[u8]],
+    ) -> ProgramResult {
+        invoke_signed(
+            &system_instruction::create_account_with_seed(
+                &funder.key,
+                &account_to_create.key,
+                &base.key,
+                seed,
+                required_lamports,
+                space,
+                owner,
+            ),
+            &[funder.clone(), account_to_create.clone(), base.clone()],
+            &[&signer_seeds],
         )
     }
 
@@ -324,12 +350,83 @@ impl Processor {
 
     /// Create new account
     pub fn process_create_account_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
-        _address_type: AddressType,
+        address_type: AddressType,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let payer_account_info = next_account_info(account_info_iter)?;
+        let sticker_factory_account_info = next_account_info(account_info_iter)?;
+        let base_address_account_info = next_account_info(account_info_iter)?;
+        let account_to_create_account_info = next_account_info(account_info_iter)?;
+        let rent_account_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_account_info)?;
+        let _system_program = next_account_info(account_info_iter)?;
+
+        let mut sticker_factory =
+            StickerFactory::try_from_slice(&sticker_factory_account_info.data.borrow())?;
+        if !sticker_factory.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        match address_type {
+            AddressType::Artist => {
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
+                    &[&sticker_factory_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                if program_base_address != *base_address_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create = Pubkey::create_with_seed(
+                    &program_base_address,
+                    format!("{:?}", sticker_factory.artist_count),
+                    program_id,
+                )?;
+                if address_to_create != *account_to_create_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let signature = &[&sticker_factory_account_info.key.to_bytes()[..32], &[bump_seed]];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_account_info.clone(),
+                    base_address_account_info.clone(),
+                    format!("{:?}", sticker_factory.artist_count),
+                    rent.minimum_balance(Artist::LEN),
+                    Artist::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
+            }
+            AddressType::Sticker => {
+                let (program_base_address, bump_seed) = Pubkey::find_program_address(
+                    &[&sticker_factory_account_info.key.to_bytes()[..32]],
+                    program_id,
+                );
+                if program_base_address != *base_address_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let address_to_create = Pubkey::create_with_seed(
+                    &program_base_address,
+                    format!("{:?}", sticker_factory.sticker_count),
+                    program_id,
+                )?;
+                if address_to_create != *account_to_create_account_info.key {
+                    return Err(ProgramError::InvalidSeeds);
+                }
+                let signature = &[&sticker_factory_account_info.key.to_bytes()[..32], &[bump_seed]];
+                Self::create_account(
+                    payer_account_info.clone(),
+                    account_to_create_account_info.clone(),
+                    base_address_account_info.clone(),
+                    format!("{:?}", sticker_factory.sticker_count),
+                    rent.minimum_balance(Sticker::LEN),
+                    Sticker::LEN as u64,
+                    program_id,
+                    signature,
+                )?;
+            }
+        }
 
         Ok(())
     }
