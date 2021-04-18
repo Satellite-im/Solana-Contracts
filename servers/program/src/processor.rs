@@ -841,15 +841,15 @@ impl Processor {
             Instruction::AddChannelToGroup => {
                 msg!("Instruction: AddChannelToGroup");
                 match accounts {
-                    [server, dweller, server_admin, group, group_channel, channel, ..] => {
+                    [server, dweller, server_admin, group, channel, group_channel, ..] => {
                         Self::add_channel_to_group(
                             program_id,
                             server,
                             dweller,
                             server_admin,
                             group,
-                            group_channel,
                             channel,
+                            group_channel,
                         )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),

@@ -87,29 +87,29 @@ pub enum Instruction {
     CreateGroup,
 
     /// Accounts:
-    /// - signer    dweller    
-    /// - read      server_administrator
-    /// - write     server
-    /// - write     server_group
-    /// - write     server_group_last
-    /// - write     [group_channel] all channels in group
+    /// - signer             dweller    
+    /// - read, derived      server_administrator
+    /// - write              server
+    /// - write, derived     server_group
+    /// - write, derived     server_group_last
+    /// - write, derived     [group_channel] all channels in group
     DeleteGroup,
 
     /// Accounts:
-    /// - write     server
-    /// - signer    dweller
-    /// - read      server_administrator
-    /// - write     group_channel
-    /// - read      channel
+    /// - write              server
+    /// - signer             dweller
+    /// - read, derived      server_administrator
+    /// - read               channel
+    /// - write, derived     group_channel
     AddChannelToGroup,
 
     /// Accounts:
     /// - write     server
     /// - signer    dweller
-    /// - read      server_administrator
+    /// - read, derived      server_administrator
     /// - read      channel
-    /// - write     group_channel
-    /// - write     group_channel_last
+    /// - write, derived     group_channel
+    /// - write, derived     group_channel_last
     RemoveChannelFromGroup,
 
     /// Accounts:
@@ -117,32 +117,32 @@ pub enum Instruction {
     /// - signer    owner of server
     /// - read      dweller to become admin
     /// - write     server
-    /// - write     server_administrator
+    /// - write, derived     server_administrator
     AddAdmin,
 
     /// Accounts:
-    /// - signer    owner
-    /// - write     server
-    /// - write     admin
-    /// - write     admin_last
+    /// - signer             owner
+    /// - write              server
+    /// - write, derived     server_administrator
+    /// - write, derived     server_administrator_last
     RemoveAdmin,
 
     /// Accounts:
-    ///   - writeable         server     
-    ///   - read signer       dweller
-    ///   - writeable         dweller_server
-    ///   - writeable         server_member
-    ///   - read              server_member_status
+    ///   - writeable                  server     
+    ///   - read signer                dweller
+    ///   - writeable, derived         dweller_server
+    ///   - writeable, derived         server_member
+    ///   - read, derived              server_member_status
     JoinServer,
 
     /// Accounts:
     ///
-    /// - write, signer     dweller
-    /// - write             server
-    /// - write             server_member
-    /// - write             server_member_last
-    /// - write             dweller_server
-    /// - write             dweller_server_last
+    /// - write, signer              dweller
+    /// - write                      server
+    /// - write, derived             server_member
+    /// - write, derived             server_member_last
+    /// - write, derived             dweller_server
+    /// - write, derived             dweller_server_last
     LeaveServer,
 
     /// Accounts:
@@ -150,7 +150,7 @@ pub enum Instruction {
     /// - signer            dweller_administrator
     /// - read, derived     server_administrator
     /// - read              dweller
-    /// - write             member_status
+    /// - write, , derived             member_status
     InviteToServer,
 
     /// Accounts:
@@ -161,14 +161,14 @@ pub enum Instruction {
     RevokeInviteServer,
 
     /// Accounts:
-    /// - signer   admin
+    /// - signer   dweller_administrator
     /// - write    server
     ///
     /// Input: [SetNameInput]
     SetServerName,
 
     /// Accounts:
-    /// - signer    admin
+    /// - signer    dweller_administrator
     /// - write     server
     ///
     /// Input: [SetHashInput]        
@@ -377,14 +377,13 @@ pub fn add_channel(
     })
 }
 
-
 /// [Instruction::DeleteChannel]
 pub fn delete_channel(
-dweller: &Pubkey,
-server_administrator: &Pubkey,
-server: &Pubkey,
-server_channel: &Pubkey,
-server_channel_last: &Pubkey,
+    dweller: &Pubkey,
+    server_administrator: &Pubkey,
+    server: &Pubkey,
+    server_channel: &Pubkey,
+    server_channel_last: &Pubkey,
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::DeleteChannel.try_to_vec()?;
     let accounts = vec![
@@ -402,117 +401,168 @@ server_channel_last: &Pubkey,
     })
 }
 
-
 /// [Instruction::CreateGroup]
 pub fn create_group(
     dweller: &Pubkey,
     server_administrator: &Pubkey,
     server: &Pubkey,
     server_group: &Pubkey,
-    input:&CreateGroupInput,
-    ) -> Result<solana_program::instruction::Instruction, ProgramError> {
-        let mut data = Instruction::CreateGroup.try_to_vec()?;
-        let mut input = input.try_to_vec()?;
-        data.append(&mut input);
-        let accounts = vec![
-            AccountMeta::new(*dweller, true),
-            AccountMeta::new_readonly(*server_administrator, false),
-            AccountMeta::new(*server, false),
-            AccountMeta::new(*server_group, false),
-        ];
-    
-        Ok(solana_program::instruction::Instruction {
-            program_id: crate::id(),
-            accounts,
-            data,
-        })
+    input: &CreateGroupInput,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let mut data = Instruction::CreateGroup.try_to_vec()?;
+    let mut input = input.try_to_vec()?;
+    data.append(&mut input);
+    let accounts = vec![
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*server_administrator, false),
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_group, false),
+    ];
+
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
+
+/// [Instruction::DeleteGroup]
+pub fn delete_group(
+    dweller: &Pubkey,
+    server_administrator: &Pubkey,
+    server: &Pubkey,
+    server_group: &Pubkey,
+    server_group_last: &Pubkey,
+    group_channels: &[&Pubkey],
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::DeleteGroup.try_to_vec()?;
+    let mut accounts = vec![
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*server_administrator, false),
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*server_group, false),
+        AccountMeta::new(*server_group_last, false),
+    ];
+
+    for account in group_channels {
+        accounts.push(AccountMeta::new(**account, false));
     }
-    
 
-    // /// Accounts:
-    // /// - signer    dweller    
-    // /// - read      server_administrator
-    // /// - write     server
-    // /// - write     server_group
-    // /// - write     server_group_last
-    // /// - write     [group_channel] all channels in group
-    // DeleteGroup,
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
 
-    // /// Accounts:
-    // /// - write     server
-    // /// - signer    dweller
-    // /// - read      server_administrator
-    // /// - write     group_channel
-    // /// - read      channel
-    // AddChannelToGroup,
+/// [Instruction::AddChannelToGroup]
+pub fn add_channel_to_group(
+    server: &Pubkey,
+    dweller: &Pubkey,
+    server_administrator: &Pubkey,
+    group_channel: &Pubkey,
+    channel: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::AddChannelToGroup.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*server_administrator, false),
+        AccountMeta::new_readonly(*channel, false),
+        AccountMeta::new(*group_channel, false),
+    ];
 
-    // /// Accounts:
-    // /// - write     server
-    // /// - signer    dweller
-    // /// - read      server_administrator
-    // /// - read      channel
-    // /// - write     group_channel
-    // /// - write     group_channel_last
-    // RemoveChannelFromGroup,
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
 
-    // /// Accounts:
-    // ///
-    // /// - signer    owner of server
-    // /// - read      dweller to become admin
-    // /// - write     server
-    // /// - write     server_administrator
-    // AddAdmin,
+/// [Instruction::RemoveChannelFromGroup]
+pub fn remove_channel_from_group(
+    server: &Pubkey,
+    dweller: &Pubkey,
+    server_administrator: &Pubkey,
+    channel: &Pubkey,
+    group_channel: &Pubkey,
+    group_channel_last: &Pubkey,
+) -> Result<solana_program::instruction::Instruction, ProgramError> {
+    let data = Instruction::RemoveChannelFromGroup.try_to_vec()?;
+    let accounts = vec![
+        AccountMeta::new(*server, false),
+        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*server_administrator, false),
+        AccountMeta::new_readonly(*channel, false),
+        AccountMeta::new(*group_channel, false),
+        AccountMeta::new(*group_channel_last, false),
+    ];
 
-    // /// Accounts:
-    // /// - signer    owner
-    // /// - write     server
-    // /// - write     admin
-    // /// - write     admin_last
-    // RemoveAdmin,
+    Ok(solana_program::instruction::Instruction {
+        program_id: crate::id(),
+        accounts,
+        data,
+    })
+}
 
-    // /// Accounts:
-    // ///   - writeable         server     
-    // ///   - read signer       dweller
-    // ///   - writeable         dweller_server
-    // ///   - writeable         server_member
-    // ///   - read              server_member_status
-    // JoinServer,
+// /// Accounts:
+// ///
+// /// - signer    owner of server
+// /// - read      dweller to become admin
+// /// - write     server
+// /// - write     server_administrator
+// AddAdmin,
 
-    // /// Accounts:
-    // ///
-    // /// - write, signer     dweller
-    // /// - write             server
-    // /// - write             server_member
-    // /// - write             server_member_last
-    // /// - write             dweller_server
-    // /// - write             dweller_server_last
-    // LeaveServer,
+// /// Accounts:
+// /// - signer    owner
+// /// - write     server
+// /// - write     admin
+// /// - write     admin_last
+// RemoveAdmin,
 
-    // /// Accounts:
-    // /// - write             server
-    // /// - signer            dweller_administrator
-    // /// - read, derived     server_administrator
-    // /// - read              dweller
-    // /// - write             member_status
-    // InviteToServer,
+// /// Accounts:
+// ///   - writeable         server
+// ///   - read signer       dweller
+// ///   - writeable         dweller_server
+// ///   - writeable         server_member
+// ///   - read              server_member_status
+// JoinServer,
 
-    // /// Accounts:
-    // /// - read, signer       admin
-    // /// - write              server
-    // /// - write, derived     member_status
-    // /// - write, derived     member_status_last
-    // RevokeInviteServer,
+// /// Accounts:
+// ///
+// /// - write, signer     dweller
+// /// - write             server
+// /// - write             server_member
+// /// - write             server_member_last
+// /// - write             dweller_server
+// /// - write             dweller_server_last
+// LeaveServer,
 
-    // /// Accounts:
-    // /// - signer   admin
-    // /// - write    server
-    // ///
-    // /// Input: [SetNameInput]
-    // SetServerName,
+// /// Accounts:
+// /// - write             server
+// /// - signer            dweller_administrator
+// /// - read, derived     server_administrator
+// /// - read              dweller
+// /// - write             member_status
+// InviteToServer,
 
-    // /// Accounts:
-    // /// - signer    admin
-    // /// - write     server
-    // ///
-    // /// Input: [SetHashInput]        
-    // SetServerDb,
+// /// Accounts:
+// /// - read, signer       admin
+// /// - write              server
+// /// - write, derived     member_status
+// /// - write, derived     member_status_last
+// RevokeInviteServer,
+
+// /// Accounts:
+// /// - signer   admin
+// /// - write    server
+// ///
+// /// Input: [SetNameInput]
+// SetServerName,
+
+// /// Accounts:
+// /// - signer    admin
+// /// - write     server
+// ///
+// /// Input: [SetHashInput]
+// SetServerDb,
