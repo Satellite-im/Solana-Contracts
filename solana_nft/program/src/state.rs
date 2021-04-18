@@ -28,6 +28,9 @@ impl Mint {
             authority,
         }
     }
+    pub fn is_initialized(&self) -> bool {
+        self.version == MintVersion::Initialized
+    }
 }
 
 pub const URI_LEN: usize = 256;

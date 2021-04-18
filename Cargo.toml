@@ -2,5 +2,6 @@
 members = [
   "servers/program",
   "friends/program",
-  "sticker/program"
+  "sticker/program",
+  "solana_nft/program"
 ]

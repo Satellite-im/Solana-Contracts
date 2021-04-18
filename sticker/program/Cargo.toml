@@ -15,6 +15,7 @@ solana-program = "1.6.5"
 thiserror = "1.0"
 borsh = "0.8.2"
 spl-token = { git="https://github.com/solana-labs/solana-program-library", features = [ "no-entrypoint" ] }
+spl-nft-erc-721 = { path="../../solana_nft/program", features = [ "no-entrypoint" ] }
 
 [dev-dependencies]
 solana-program-test = "1.6.5"

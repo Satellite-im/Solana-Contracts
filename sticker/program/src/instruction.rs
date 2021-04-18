@@ -201,3 +201,5 @@ pub fn buy_sticker(
         data,
     })
 }
+
+// TODO: change sticker price

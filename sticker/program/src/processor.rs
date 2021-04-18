@@ -12,6 +12,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use spl_token::state::Account;
+use spl_nft_erc_721::state::Mint;
 
 /// Program state handler.
 pub struct Processor {}
@@ -71,6 +72,9 @@ impl Processor {
         }
 
         let mut artist = Artist::try_from_slice(&artist_to_create_account_info.data.borrow())?;
+        if artist.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
         artist.user = *user_account_info.key;
         artist.user_token_acc = *user_token_account_info.key;
         artist.name = args.name;
@@ -90,14 +94,75 @@ impl Processor {
 
     /// Create new sticker
     pub fn process_create_new_sticker_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
-        _args: CreateNewSticker,
+        args: CreateNewSticker,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let sticker_account_info = next_account_info(account_info_iter)?;
+        let sticker_factory_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let artist_account_info = next_account_info(account_info_iter)?;
+        let user_account_info = next_account_info(account_info_iter)?;
+        let rent_account_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_account_info)?;
 
-        Ok(())
+        let mut sticker_factory =
+            StickerFactory::try_from_slice(&sticker_factory_account_info.data.borrow())?;
+        if !sticker_factory.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let (base, _) = Pubkey::find_program_address(
+            &[&sticker_factory_account_info.key.to_bytes()[..32]],
+            program_id,
+        );
+        let generated_sticker_key = Pubkey::create_with_seed(
+            &base,
+            &format!("{:?}", sticker_factory.sticker_count),
+            program_id,
+        )?;
+        if generated_sticker_key != *sticker_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        let nft_mint = Mint::try_from_slice(&mint_account_info.data.borrow())?;
+        if !nft_mint.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        let artist = Artist::try_from_slice(&artist_account_info.data.borrow())?;
+        if !artist.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if *user_account_info.key != artist.user || !user_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        if !rent.is_exempt(
+            sticker_account_info.lamports(),
+            sticker_account_info.data_len(),
+        ) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
+
+        let mut sticker = Sticker::try_from_slice(&sticker_account_info.data.borrow())?;
+        sticker.creator = artist.user;
+        sticker.max_supply = args.max_supply;
+        sticker.price = args.price;
+        sticker.mint = *mint_account_info.key;
+        sticker.uri = args.uri;
+
+        sticker_factory.artist_count = sticker_factory
+            .sticker_count
+            .checked_add(1)
+            .ok_or::<ProgramError>(StickerProgramError::CalculationError.into())?;
+
+        sticker_factory.serialize(&mut *sticker_factory_account_info.data.borrow_mut())?;
+        sticker
+            .serialize(&mut *sticker_account_info.data.borrow_mut())
+            .map_err(|e| e.into())
     }
 
     /// Buy sticker
