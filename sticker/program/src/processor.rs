@@ -7,16 +7,88 @@ use crate::{
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    account_info::next_account_info, account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, sysvar::rent::Rent,
+    account_info::next_account_info,
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::rent::Rent,
     sysvar::Sysvar,
 };
-use spl_token::state::Account;
 use spl_nft_erc_721::state::Mint;
+use spl_token::state::Account;
 
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
+    /// Transfer tokens with authority
+    #[allow(clippy::too_many_arguments)]
+    fn transfer<'a>(
+        token_program_id: AccountInfo<'a>,
+        source_account: AccountInfo<'a>,
+        destination_account: AccountInfo<'a>,
+        user_authority_account: AccountInfo<'a>,
+        amount: u64,
+    ) -> ProgramResult {
+        invoke(
+            &spl_token::instruction::transfer(
+                token_program_id.key,
+                source_account.key,
+                destination_account.key,
+                user_authority_account.key,
+                &[user_authority_account.key],
+                amount,
+            )
+            .unwrap(),
+            &[
+                token_program_id,
+                user_authority_account,
+                source_account,
+                destination_account,
+            ],
+        )
+    }
+
+    /// Mint new sticker
+    fn create_new_sticker<'a>(
+        nft_program_id: AccountInfo<'a>,
+        token_account: AccountInfo<'a>,
+        token_data_account: AccountInfo<'a>,
+        mint_account: AccountInfo<'a>,
+        owner_account: AccountInfo<'a>,
+        mint_authority: AccountInfo<'a>,
+        sticker_key: &Pubkey,
+        bump_seed: u8,
+        hash: Pubkey,
+        uri: [u8; 256],
+    ) -> ProgramResult {
+        let authority_signature_seeds = [&sticker_key.to_bytes()[..32], &[bump_seed]];
+        let signers = &[&authority_signature_seeds[..]];
+        let token_data_args = spl_nft_erc_721::instruction::TokenDataArgs { hash, uri };
+        invoke_signed(
+            &spl_nft_erc_721::instruction::NftInstruction::initialize_token(
+                token_account.key,
+                token_data_account.key,
+                mint_account.key,
+                owner_account.key,
+                token_data_args,
+                mint_authority.key,
+            ),
+            &[
+                token_account,
+                token_data_account,
+                mint_account,
+                owner_account,
+                mint_authority,
+                nft_program_id,
+            ],
+            signers,
+        )
+    }
+
     /// Register new artist
     pub fn process_register_artist_instruction(
         program_id: &Pubkey,
@@ -167,11 +239,60 @@ impl Processor {
 
     /// Buy sticker
     pub fn process_buy_sticker_instruction(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-        let _example_account_info = next_account_info(account_info_iter)?;
+        let sticker_to_buy_account_info = next_account_info(account_info_iter)?;
+        let artist_token_account_info = next_account_info(account_info_iter)?;
+        let buyer_token_account_info = next_account_info(account_info_iter)?;
+        let buyer_transfer_authority_account_info = next_account_info(account_info_iter)?;
+        let mint_authority = next_account_info(account_info_iter)?;
+        let nft_token_account_info = next_account_info(account_info_iter)?;
+        let nft_token_data_account_info = next_account_info(account_info_iter)?;
+        let nft_token_mint_account_info = next_account_info(account_info_iter)?;
+        let nft_token_owner_account_info = next_account_info(account_info_iter)?;
+        let token_program_id = next_account_info(account_info_iter)?;
+        let nft_token_program_id = next_account_info(account_info_iter)?;
+
+        let sticker = Sticker::try_from_slice(&sticker_to_buy_account_info.data.borrow())?;
+        if !sticker.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if *artist_token_account_info.key != sticker.creator {
+            return Err(StickerProgramError::WrongStickerCreator.into());
+        }
+
+        let (generated_mint_auth, bump_seed) = Pubkey::find_program_address(
+            &[&sticker_to_buy_account_info.key.to_bytes()[..32]],
+            program_id,
+        );
+        if generated_mint_auth != *mint_authority.key {
+            return Err(StickerProgramError::WrongTokenMintAuthority.into());
+        }
+
+
+        Self::transfer(
+            token_program_id.clone(),
+            buyer_token_account_info.clone(),
+            artist_token_account_info.clone(),
+            buyer_transfer_authority_account_info.clone(),
+            sticker.price,
+        )?;
+
+        Self::create_new_sticker(
+            nft_token_program_id.clone(),
+            nft_token_account_info.clone(),
+            nft_token_data_account_info.clone(),
+            nft_token_mint_account_info.clone(),
+            nft_token_owner_account_info.clone(),
+            mint_authority.clone(),
+            sticker_to_buy_account_info.key,
+            bump_seed,
+            *sticker_to_buy_account_info.key,  // TODO: ask bout it
+            sticker.uri,
+        )?;
 
         Ok(())
     }

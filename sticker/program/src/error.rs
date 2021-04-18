@@ -21,6 +21,12 @@ pub enum StickerProgramError {
     /// Calculation error
     #[error("Calculation error")]
     CalculationError,
+    /// Wrong sticker creator
+    #[error("Wrong sticker creator")]
+    WrongStickerCreator,
+    /// Wrong token mint authority
+    #[error("Wrong token mint authority")]
+    WrongTokenMintAuthority,
 }
 impl From<StickerProgramError> for ProgramError {
     fn from(e: StickerProgramError) -> Self {
@@ -42,6 +48,8 @@ impl PrintProgramError for StickerProgramError {
             StickerProgramError::WrongTokenMint => msg!("Wrong mint for user token account"),
             StickerProgramError::WrongStickerFactoryOwner => msg!("Wrong sticker factory owner"),
             StickerProgramError::CalculationError => msg!("Calculation error"),
+            StickerProgramError::WrongStickerCreator => msg!("Wrong sticker creator"),
+            StickerProgramError::WrongTokenMintAuthority => msg!("Wrong token mint authority"),
         }
     }
 }

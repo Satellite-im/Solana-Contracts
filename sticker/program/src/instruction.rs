@@ -178,6 +178,7 @@ pub fn buy_sticker(
     artist_token_acc: &Pubkey,
     buyer_token_acc: &Pubkey,
     buyer_transfer_authority: &Pubkey,
+    mint_authority: &Pubkey,
     nft_token: &Pubkey,
     nft_token_data: &Pubkey,
     nft_token_mint: &Pubkey,
@@ -190,10 +191,13 @@ pub fn buy_sticker(
         AccountMeta::new(*artist_token_acc, false),
         AccountMeta::new(*buyer_token_acc, false),
         AccountMeta::new_readonly(*buyer_transfer_authority, true),
+        AccountMeta::new_readonly(*mint_authority, false),
         AccountMeta::new(*nft_token, false),
         AccountMeta::new(*nft_token_data, false),
         AccountMeta::new_readonly(*nft_token_mint, false),
         AccountMeta::new_readonly(*nft_token_owner, false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(spl_nft_erc_721::id(), false),
     ];
     Ok(Instruction {
         program_id: *program_id,
