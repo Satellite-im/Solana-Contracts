@@ -60,10 +60,12 @@ pub enum StickerInstruction {
     ///
     ///   0. `[w]` Sticker account
     ///   1. `[w]` Sticker factory
-    ///   2. `[r]` Created NFT mint. Authority should be the program address
+    ///   2. `[r]` NFT mint. Created but not initialized account
     ///   3. `[r]` Artist
     ///   4. `[rs]` Artist's user
-    ///   5. `[r]` Rent
+    ///   5. `[r]` Mint authority. Program address
+    ///   6. `[r]` NFT 721 token program id
+    ///   7. `[r]` Rent
     CreateNewSticker(CreateNewSticker),
 
     /// CreateStickerFactory
@@ -76,13 +78,18 @@ pub enum StickerInstruction {
     /// BuySticker
     ///
     ///   0. `[r]` Sticker to buy
+    ///   1. `[r]` Artist account
     ///   1. `[w]` Artist's token account to receive payments
     ///   2. `[w]` Buyer's token account
     ///   3. `[rs]` Buyer's transfer authority
+    ///   4. `[r]` NFT token mint authority
     ///   4. `[w]` NFT token
     ///   5. `[w]` NFT token data
     ///   6. `[r]` NFT token mint
     ///   7. `[r]` NFT token owner, user's account
+    ///   8. `[r]` Token program id
+    ///   9. `[r]` NFT 721 token program id
+    ///   10. `[r]` Rent
     BuySticker,
 
     /// ChangeStickerPrice
@@ -97,6 +104,8 @@ pub enum StickerInstruction {
     ///   1. `[r]` Sticker factory
     ///   2. `[r]` Base
     ///   3. `[w]` Account to create
+    ///   4. `[r]` Rent
+    ///   5. `[r]` System program
     CreateAccount(AddressType),
 }
 

@@ -254,6 +254,10 @@ impl Processor {
         let rent_account_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_account_info)?;
 
+        if *nft_token_program_id.key != spl_nft_erc_721::id() {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+
         let mut sticker_factory =
             StickerFactory::try_from_slice(&sticker_factory_account_info.data.borrow())?;
         if !sticker_factory.is_initialized() {
@@ -315,6 +319,10 @@ impl Processor {
         }
 
         let mut sticker = Sticker::try_from_slice(&sticker_account_info.data.borrow())?;
+        if sticker.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
         sticker.creator = artist.user;
         sticker.supply = 0;
         sticker.max_supply = args.max_supply;
@@ -388,7 +396,12 @@ impl Processor {
         let nft_token_owner_account_info = next_account_info(account_info_iter)?;
         let token_program_id = next_account_info(account_info_iter)?;
         let nft_token_program_id = next_account_info(account_info_iter)?;
+        // Need in Rent account because we call NFT program instruction which uses it
         let _rent_account_info = next_account_info(account_info_iter)?;
+
+        if *token_program_id.key != spl_token::id() || *nft_token_program_id.key != spl_nft_erc_721::id() {
+            return Err(ProgramError::IncorrectProgramId);
+        }
 
         let mut sticker = Sticker::try_from_slice(&sticker_to_buy_account_info.data.borrow())?;
         if !sticker.is_initialized() {
@@ -487,6 +500,7 @@ impl Processor {
         let account_to_create_account_info = next_account_info(account_info_iter)?;
         let rent_account_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_account_info)?;
+        // Need in System Program account because we call create_account_with_seed instruction which requires it
         let _system_program = next_account_info(account_info_iter)?;
 
         let sticker_factory =
