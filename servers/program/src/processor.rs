@@ -1,17 +1,18 @@
 //! Program state processor
 
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    program_pack::IsInitialized, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
+};
+
 use super::borsh::*;
+
 use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
     error::Error,
     instruction::*,
     program::{create_index_with_seed, create_seeded_rent_except_account, swap_last_to_default},
     state::*,
-};
-
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-    pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
 };
 
 use super::prelude::*;
@@ -213,135 +214,89 @@ impl Processor {
 
     fn add_channel<'a>(
         program_id: &Pubkey,
-        dweller: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
         server_administrator: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         server_channel: &AccountInfo<'a>,
         input: &AddChannelInput,
     ) -> ProgramResult {
-        if dweller.is_signer {
-            let mut server_data = server.try_borrow_mut_data()?;
-            let mut server_state = Server::deserialize_const(&server_data)?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
-            let channel_key = create_index_with_seed(
-                program_id,
-                ServerChannel::SEED,
-                server.key,
-                server_state.channels,
-            )?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
-            if channel_key == *server_channel.key {
-                let server_administrator_state =
-                    server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
-                if server_administrator_state.dweller == *dweller.key {
-                    let administrator_member_key = create_index_with_seed(
-                        program_id,
-                        ServerAdministrator::SEED,
-                        server.key,
-                        server_administrator_state.index,
-                    )?;
-                    if administrator_member_key == *server_administrator.key {
-                        let mut channel_data = server_channel.try_borrow_mut_data()?;
-                        let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
-                        let server_channel_key = create_index_with_seed(
-                            program_id,
-                            ServerChannel::SEED,
-                            server.key,
-                            server_state.channels,
-                        )?;
+        let server_channel_key = create_index_with_seed(
+            program_id,
+            ServerChannel::SEED,
+            server.key,
+            server_state.channels,
+        )?;
 
-                        if server_channel_key == *server_channel.key {
-                            channel_state.version = StateVersion::V1;
-                            channel_state.container = *server.key;
-                            channel_state.name = input.name;
-                            server_state.channels = server_state.channels.error_increment()?;
+        if server_channel_key == *server_channel.key {
+            let (mut channel_data, mut channel_state) =
+                server_channel.read_data_with_borsh_mut::<ServerChannel>()?;
 
-                            channel_state.index = server_state.groups;
-                            channel_state.serialize_const(&mut channel_data)?;
-                            server_state.serialize_const(&mut server_data)?;
+            channel_state.version = StateVersion::V1;
+            channel_state.container = *server.key;
+            channel_state.type_id = input.type_id;
+            channel_state.name = input.name;
+            channel_state.index = server_state.channels;
 
-                            Ok(())
-                        } else {
-                            Err(Error::InvalidDerivedAddress.into())
-                        }
-                    } else {
-                        Err(Error::InvalidDerivedAddress.into())
-                    }
-                } else {
-                    Err(Error::InvalidDerivedAddress.into())
-                }
-            } else {
-                Err(Error::InvalidDerivedAddress.into())
-            }
+            server_state.channels = server_state.channels.error_increment()?;
+
+            channel_state.serialize_const(&mut channel_data)?;
+            server_state.serialize_const(&mut server_data)?;
+
+            Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature)
+            Err(Error::InvalidDerivedServerChannelAddress.into())
         }
     }
 
     fn create_group<'a>(
         program_id: &Pubkey,
-        dweller: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
         server_administrator: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         server_group: &AccountInfo<'a>,
         input: &CreateGroupInput,
     ) -> ProgramResult {
-        if dweller.is_signer {
-            let mut server_data = server.try_borrow_mut_data()?;
-            let mut server_state = Server::deserialize_const(&server_data)?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
-            let group_key = create_index_with_seed(
-                program_id,
-                ServerGroup::SEED,
-                server.key,
-                server_state.groups,
-            )?;
+        let (mut group_data, mut group_state) =
+            server_group.read_data_with_borsh_mut::<ServerGroup>()?;
 
-            if group_key == *server_group.key {
-                let server_administrator_state: ServerAdministrator =
-                    server_administrator.read_data_with_borsh()?;
-                if server_administrator_state.dweller == *dweller.key {
-                    let administrator_member_key = create_index_with_seed(
-                        program_id,
-                        ServerAdministrator::SEED,
-                        server.key,
-                        server_administrator_state.index,
-                    )?;
-                    if administrator_member_key == *server_administrator.key {
-                        let mut group_data = server_group.try_borrow_mut_data()?;
-                        let mut group_state = ServerGroup::deserialize_const(&group_data)?;
-                        let channel_key = create_index_with_seed(
-                            program_id,
-                            ServerChannel::SEED,
-                            server.key,
-                            server_state.groups,
-                        )?;
+        let server_group_key = create_index_with_seed(
+            program_id,
+            ServerGroup::SEED,
+            server.key,
+            server_state.groups,
+        )?;
 
-                        if channel_key == *server_group.key {
-                            group_state.container = *server.key;
-                            group_state.name = input.name;
-                            group_state.version = StateVersion::V1;
-                            server_state.groups = server_state.groups.error_increment()?;
+        if server_group_key == *server_group.key {
+            group_state.container = *server.key;
+            group_state.name = input.name;
+            group_state.version = StateVersion::V1;
+            group_state.index = server_state.groups;
 
-                            group_state.index = server_state.groups;
-                            group_state.serialize_const(&mut group_data)?;
-                            server_state.serialize_const(&mut server_data)?;
+            server_state.groups = server_state.groups.error_increment()?;
 
-                            Ok(())
-                        } else {
-                            Err(Error::InvalidDerivedAddress.into())
-                        }
-                    } else {
-                        Err(Error::InvalidDerivedAddress.into())
-                    }
-                } else {
-                    Err(Error::InvalidDerivedAddress.into())
-                }
-            } else {
-                Err(Error::InvalidDerivedAddress.into())
-            }
+            group_state.serialize_const(&mut group_data)?;
+            server_state.serialize_const(&mut server_data)?;
+
+            Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature)
+            Err(Error::InvalidDerivedServerGroupAddress.into())
         }
     }
 
@@ -371,9 +326,10 @@ impl Processor {
                     server_administrator_state.container = *server.key;
                     server_administrator_state.dweller = *dweller.key;
                     server_administrator_state.version = StateVersion::V1;
+                    server_administrator_state.index = server_state.administrators;
+
                     server_state.administrators = server_state.administrators.error_increment()?;
 
-                    server_administrator_state.index = server_state.administrators;
                     server_administrator_state.serialize_const(&mut server_administrator_data)?;
                     server_state.serialize_const(&mut server_data)?;
 
@@ -439,59 +395,44 @@ impl Processor {
     fn invite_to_server<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
-        dweller_admin: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
         server_administrator: &AccountInfo<'a>,
         dweller: &AccountInfo<'a>,
         member_status: &AccountInfo<'a>,
     ) -> ProgramResult {
-        if dweller_admin.is_signer {
-            let server_administrator_state =
-                server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
-            let administrator_key = create_index_with_seed(
-                program_id,
-                ServerAdministrator::SEED,
-                server.key,
-                server_administrator_state.index,
-            )?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
-            if administrator_key == *server_administrator.key {
-                let mut server_data = server.try_borrow_mut_data()?;
-                let mut server_state = Server::deserialize_const(&server_data)?;
+        let member_status_key = create_index_with_seed(
+            program_id,
+            ServerMemberStatus::SEED,
+            server.key,
+            server_state.member_statuses,
+        )?;
 
-                let member_status_key = create_index_with_seed(
-                    program_id,
-                    ServerMember::SEED,
-                    server.key,
-                    server_state.member_statuses,
-                )?;
+        if member_status_key == *member_status.key {
+            let (mut member_status_data, mut member_status_state) =
+                member_status.read_data_with_borsh_mut::<ServerMemberStatus>()?;
 
-                if member_status_key == *member_status.key {
-                    let member_status_data = member_status.try_borrow_mut_data()?;
-                    let mut member_status_state =
-                        ServerMemberStatus::deserialize_const(&member_status_data)?;
+            member_status_state.container = *server.key;
+            member_status_state.version = StateVersion::V1;
+            member_status_state.dweller = *dweller.key;
+            member_status_state.index = server_state.member_statuses;
 
-                    member_status_state.container = *server.key;
-                    member_status_state.version = StateVersion::V1;
-                    member_status_state.dweller = *dweller.key;
+            server_state.member_statuses = server_state.member_statuses.error_increment()?;
 
-                    server_state.member_statuses =
-                        server_state.member_statuses.error_increment()?;
+            server_state.serialize_const(&mut server_data)?;
+            member_status_state.serialize_const(&mut member_status_data)?;
 
-                    member_status_state.index = server_state.member_statuses;
-
-                    server_state.serialize_const(&mut server_data)?;
-
-                    server_state.serialize_const(&mut server_data)?;
-                    Ok(())
-                } else {
-                    Err(Error::InvalidDerivedAddress.into())
-                }
-            } else {
-                Err(Error::InvalidDerivedAddress.into())
-            }
+            Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature)
+            Err(Error::InvalidDerivedServerMemberStatusAddress.into())
         }
     }
 
@@ -694,13 +635,13 @@ impl Processor {
             Instruction::AddChannel => {
                 msg!("Instruction: AddChannel");
                 match accounts {
-                    [dweller, server_administrator, server, server_channel, ..] => {
+                    [dweller_administrator, server_administrator, server, server_channel, ..] => {
                         let input =
                             super::instruction::AddChannelInput::deserialize_const(&input[1..])?;
 
                         Self::add_channel(
                             program_id,
-                            dweller,
+                            dweller_administrator,
                             server_administrator,
                             server,
                             server_channel,
@@ -741,11 +682,11 @@ impl Processor {
             Instruction::InviteToServer => {
                 msg!("Instruction: InviteToServer");
                 match accounts {
-                    [server, dweller_admin, server_administrator, dweller, member_status, ..] => {
+                    [server, dweller_administrator, server_administrator, dweller, member_status, ..] => {
                         Self::invite_to_server(
                             program_id,
                             server,
-                            dweller_admin,
+                            dweller_administrator,
                             server_administrator,
                             dweller,
                             member_status,
@@ -839,17 +780,18 @@ impl Processor {
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
+
             Instruction::AddChannelToGroup => {
                 msg!("Instruction: AddChannelToGroup");
                 match accounts {
-                    [server, dweller, server_admin, group, channel, group_channel, ..] => {
+                    [server, dweller_administrator, server_administrator, server_channel, server_group, group_channel, ..] => {
                         Self::add_channel_to_group(
                             program_id,
                             server,
-                            dweller,
-                            server_admin,
-                            group,
-                            channel,
+                            dweller_administrator,
+                            server_administrator,
+                            server_channel,
+                            server_group,
                             group_channel,
                         )
                     }
@@ -924,7 +866,7 @@ impl Processor {
         server_channel_last: &AccountInfo<'a>,
         group_channels: &[AccountInfo<'a>],
     ) -> ProgramResult {
-        require_admin(dweller, server, server_administrator)?;
+        require_admin(program_id, dweller, server, server_administrator)?;
 
         let channel_state = server_group.read_data_with_borsh::<ServerGroup>()?;
         let group_key = create_index_with_seed(
@@ -968,7 +910,7 @@ impl Processor {
         server_channel: &AccountInfo<'a>,
         server_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        require_admin(dweller, server, server_administrator)?;
+        require_admin(program_id, dweller, server, server_administrator)?;
 
         let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
 
@@ -1002,7 +944,7 @@ impl Processor {
         group_channel: &AccountInfo<'a>,
         group_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        require_admin(dweller, server, server_admin)?;
+        require_admin(program_id, dweller, server, server_admin)?;
 
         let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
         let group_channel_key = create_index_with_seed(
@@ -1028,21 +970,27 @@ impl Processor {
     fn add_channel_to_group<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
-        dweller: &AccountInfo<'a>,
-        server_admin: &AccountInfo<'a>,
-        group: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server_channel: &AccountInfo<'a>,
+        server_group: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
-        channel: &AccountInfo<'a>,
     ) -> ProgramResult {
-        require_admin(dweller, server, server_admin)?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
-        let (mut group_data, mut group_state) = server.read_data_with_borsh_mut::<ServerGroup>()?;
+        let (mut server_group_data, mut server_group_state) =
+            server.read_data_with_borsh_mut::<ServerGroup>()?;
 
         let group_channel_key = create_index_with_seed(
             program_id,
             GroupChannel::SEED,
-            group.key,
-            group_state.channels,
+            server_group.key,
+            server_group_state.channels,
         )?;
         if group_channel_key == *group_channel.key {
             let (mut group_channel_data, mut group_channel_state) =
@@ -1050,17 +998,21 @@ impl Processor {
 
             if group_channel_state.version == StateVersion::Uninitialized {
                 group_channel_state.container = *server.key;
-                group_channel_state.index = group_state.channels;
-                group_channel_state.channel = *channel.key;
+                group_channel_state.index = server_group_state.channels;
+                group_channel_state.channel = *server_channel.key;
 
-                group_state.channels = group_state.channels.error_increment()?;
+                server_group_state.channels = server_group_state.channels.error_increment()?;
+
                 group_channel_state.serialize_const(&mut group_channel_data)?;
-                group_state.serialize_const(&mut group_data)?;
-                return Ok(());
-            }
-        }
+                server_group_state.serialize_const(&mut server_group_data)?;
 
-        Err(Error::Failed.into())
+                return Ok(());
+            } else {
+                Err(ProgramError::AccountAlreadyInitialized)
+            }
+        } else {
+            Err(Error::InvalidDerivedServerChannelAddress.into())
+        }
     }
 
     fn leave_server<'a>(
@@ -1116,23 +1068,18 @@ impl Processor {
                 let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
                 let mut dweller_server_state =
                     DwellerServer::deserialize_const(&dweller_server_data)?;
+
                 if dweller_server_state.version == StateVersion::Uninitialized {
                     let server_member_status_state: ServerMemberStatus =
                         server_member_status.read_data_with_borsh()?;
-
-                    let server_member_status_key = create_index_with_seed(
-                        program_id,
-                        ServerMemberStatus::SEED,
-                        server.key,
-                        server_member_status_state.index,
-                    )?;
-
-                    if server_member_status_key == *server_member_status.key
+                    if server_member.owner == program_id
                         && server_member_status_state.dweller == *dweller.key
                         && server_member_status_state.container == *server.key
                     {
-                        let mut server_data = server.try_borrow_mut_data()?;
-                        let mut server_state = Server::deserialize_const(&server_data)?;
+                        let (mut server_data, mut server_state) =
+                            server.read_data_with_borsh_mut::<Server>()?;
+                        let (mut server_member_data, mut server_member_state) =
+                            server_member.read_data_with_borsh_mut::<ServerMember>()?;
 
                         let server_member_key = create_index_with_seed(
                             program_id,
@@ -1142,10 +1089,6 @@ impl Processor {
                         )?;
 
                         if server_member_key == *server_member.key {
-                            let mut server_member_data = server_member.try_borrow_mut_data()?;
-                            let mut server_member_state =
-                                ServerMember::deserialize_const(&server_member_data)?;
-
                             if server_member_state.version == StateVersion::Uninitialized {
                                 server_member_state.version = StateVersion::V1;
                                 server_member_state.container = *server.key;
@@ -1166,14 +1109,24 @@ impl Processor {
                                 dweller_state.serialize_const(&mut dweller_data)?;
 
                                 return Ok(());
+                            } else {
+                                return Err(ProgramError::AccountAlreadyInitialized);
                             }
+                        } else {
+                            return Err(Error::InvalidDerivedServerMemberAddress.into());
                         }
+                    } else {
+                        return Err(Error::InvalidDerivedServerMemberStatusAddress.into());
                     }
+                } else {
+                    return Err(ProgramError::AccountAlreadyInitialized);
                 }
+            } else {
+                return Err(Error::InvalidDerivedDwellerServerAddress.into());
             }
+        } else {
+            return Err(ProgramError::MissingRequiredSignature);
         }
-
-        Err(Error::Failed.into())
     }
 }
 
@@ -1190,16 +1143,31 @@ fn require_owner<'a>(server_state: &Server, owner: &AccountInfo<'a>) -> ProgramR
 }
 
 fn require_admin(
-    dweller: &AccountInfo,
+    program_id: &Pubkey,
+    dweller_administrator: &AccountInfo,
     server: &AccountInfo,
-    server_admin: &AccountInfo,
+    server_administrator: &AccountInfo,
 ) -> ProgramResult {
-    if dweller.is_signer {
-        let server_admin_state: ServerAdministrator = server_admin.read_data_with_borsh()?;
-        if server_admin_state.container == *server.key && server_admin_state.dweller == *dweller.key
-        {
-            return Err(ProgramError::MissingRequiredSignature);
+    if server_administrator.owner != program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if dweller_administrator.is_signer {
+        let server_administrator_state: ServerAdministrator =
+            server_administrator.read_data_with_borsh()?;
+        server_administrator_state.is_initialized()?;
+
+        if server_administrator_state.container == *server.key {
+            if server_administrator_state.dweller == *dweller_administrator.key {
+                return Ok(());
+            } else {
+                return Err(Error::InvalidDerivedServerAdministratorAddress.into());
+            }
+        } else {
+            return Err(Error::InvalidDerivedAddressWrongServer.into());
         }
+    } else {
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
     Ok(())

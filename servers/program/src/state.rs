@@ -1,7 +1,10 @@
 ///! Registry types.
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_derive::{FromPrimitive, ToPrimitive};
-use solana_program::pubkey::Pubkey;
+use solana_program::{
+    entrypoint::ProgramResult, program_error::ProgramError, program_pack::IsInitialized,
+    pubkey::Pubkey,
+};
 
 #[repr(C)]
 #[derive(
@@ -118,6 +121,13 @@ pub struct ServerAdministrator {
 impl ServerAdministrator {
     pub const LEN: u64 = 73;
     pub const SEED: &'static str = "ServerAdministrator";
+    pub fn is_initialized(&self) -> ProgramResult {
+        if self.version == StateVersion::Uninitialized {
+            Err(ProgramError::UninitializedAccount)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[repr(C)]

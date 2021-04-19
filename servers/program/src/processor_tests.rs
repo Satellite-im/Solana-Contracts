@@ -14,9 +14,15 @@ use solana_sdk::{
 
 use crate::{
     id,
-    instruction::{self, InitializeDwellerInput, InitializeServerInput},
+    instruction::{
+        self, AddChannelInput, CreateGroupInput, InitializeDwellerInput, InitializeServerInput,
+    },
     processor,
     state::*,
+    test::{
+        add_channel_to_group_transaction, add_channel_transaction, add_invite_transaction,
+        create_group_transaction, join_server_transaction,
+    },
 };
 
 pub fn program_test() -> ProgramTest {
@@ -99,11 +105,11 @@ async fn test_create_derived_dweller_account() {
 }
 
 #[tokio::test]
-async fn flow() {
+async fn positive_add_flow() {
     let mut blockchain = program_test().start_with_context().await;
     let rent = blockchain.banks_client.get_rent().await.unwrap();
 
-    /// create_dwellers
+    // create_dwellers
     let dwellers = [
         Keypair::new(),
         Keypair::new(),
@@ -129,9 +135,15 @@ async fn flow() {
         )
         .await;
 
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, dweller, rent, seed, index, address_type)
-                .await;
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &dweller.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
 
         let dweller_server: DwellerServer =
             get_account_data(&mut blockchain, &address_to_create).await;
@@ -144,7 +156,7 @@ async fn flow() {
     let [dweller_owner, dweller_admin_1, dweller_admin_2, dweller_admin_3, dweller_1, dweller_2, dweller_3] =
         dwellers;
 
-    /// create server
+    // create server
     let server = Keypair::new();
 
     let mut server_members = Vec::new();
@@ -152,14 +164,21 @@ async fn flow() {
         let address_type = instruction::AddressTypeInput::ServerMember(index);
         let seed = ServerMember::SEED;
 
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
         server_members.push(address_to_create);
         let account_state: ServerMember =
             get_account_data(&mut blockchain, &address_to_create).await;
 
         assert_eq!(account_state.container, Pubkey::default(),);
+        assert_eq!(account_state.version, StateVersion::Uninitialized);
     }
 
     test_initialize_server(
@@ -178,41 +197,20 @@ async fn flow() {
     assert_eq!(server_state.owner, dweller_owner.pubkey());
     assert_eq!(server_state.members, 1);
 
-    let mut server_groups = Vec::new();
-    for index in (0u64..3) {
-        let address_type = instruction::AddressTypeInput::ServerGroup(index);
-        let seed = ServerGroup::SEED;
-
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
-        server_groups.push(address_to_create);
-        let account_state: ServerGroup =
-            get_account_data(&mut blockchain, &address_to_create).await;
-
-        assert_eq!(account_state.container, Pubkey::default(),);
-    }
-
-    let mut server_channels = Vec::new();
-    for index in (0u64..3) {
-        let address_type = instruction::AddressTypeInput::ServerChannel(index);
-        let seed = ServerChannel::SEED;
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
-        server_channels.push(address_to_create);
-        let account_state: ServerChannel =
-            get_account_data(&mut blockchain, &address_to_create).await;
-        assert_eq!(account_state.container, Pubkey::default(),);
-    }
-
+    // administrators and members
     let mut server_administrators = Vec::new();
     for index in (0u64..3) {
         let address_type = instruction::AddressTypeInput::ServerAdministrator(index);
         let seed = ServerAdministrator::SEED;
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
         server_administrators.push(address_to_create);
         let account_state: ServerAdministrator =
             get_account_data(&mut blockchain, &address_to_create).await;
@@ -232,17 +230,93 @@ async fn flow() {
     .await;
 
     let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert!(account_state.administrators > 0);
+    let account_state: ServerAdministrator =
+        get_account_data(&mut blockchain, &server_administrators[0]).await;
+    assert_eq!(account_state.container, server.pubkey());
 
-    let mut server_member_statues = Vec::new();
+    let mut server_member_statuses = Vec::new();
     for index in (0u64..3) {
         let address_type = instruction::AddressTypeInput::ServerMemberStatus(index);
         let seed = ServerMemberStatus::SEED;
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
-        server_member_statues.push(address_to_create);
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
+        server_member_statuses.push(address_to_create);
         let account_state: ServerMemberStatus =
             get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
+
+    let trx = add_invite_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &dweller_admin_1,
+        &server_administrators[0],
+        &dweller_1.pubkey(),
+        &server_member_statuses[0],
+        blockchain.last_blockhash,
+    );
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let account_state: ServerMemberStatus =
+        get_account_data(&mut blockchain, &server_member_statuses[0]).await;
+    assert_eq!(account_state.container, server.pubkey());
+    assert_eq!(account_state.dweller, dweller_1.pubkey());
+    assert_eq!(account_state.index, 0);
+
+    let trx = join_server_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &server_members[1],
+        &server_member_statuses[0],
+        &dweller_1,
+        &dweller_servers[4],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let account_state: ServerMemberStatus =
+        get_account_data(&mut blockchain, &server_members[1]).await;
+    assert_eq!(account_state.container, server.pubkey());
+    assert_eq!(account_state.index, 1);
+    assert_eq!(account_state.dweller, dweller_1.pubkey());
+
+    // groups and channels
+
+    let mut server_groups = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerGroup(index);
+        let seed = ServerGroup::SEED;
+
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
+        server_groups.push(address_to_create);
+        let account_state: ServerGroup =
+            get_account_data(&mut blockchain, &address_to_create).await;
+
         assert_eq!(account_state.container, Pubkey::default(),);
     }
 
@@ -250,29 +324,103 @@ async fn flow() {
     for index in (0u64..3) {
         let address_type = instruction::AddressTypeInput::GroupChannel(index);
         let seed = GroupChannel::SEED;
-        let address_to_create =
-            create_derived_account_index(&mut blockchain, &server, rent, seed, index, address_type)
-                .await;
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server_groups[0],
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
         group_channels.push(address_to_create);
         let account_state: GroupChannel =
             get_account_data(&mut blockchain, &address_to_create).await;
         assert_eq!(account_state.container, Pubkey::default(),);
     }
+
+    let mut server_channels = Vec::new();
+    for index in (0u64..3) {
+        let address_type = instruction::AddressTypeInput::ServerChannel(index);
+        let seed = ServerChannel::SEED;
+        let address_to_create = create_derived_account_index(
+            &mut blockchain,
+            &server.pubkey(),
+            rent,
+            seed,
+            index,
+            address_type,
+        )
+        .await;
+        server_channels.push(address_to_create);
+        let account_state: ServerChannel =
+            get_account_data(&mut blockchain, &address_to_create).await;
+        assert_eq!(account_state.container, Pubkey::default(),);
+    }
+
+    let trx = create_group_transaction(
+        &blockchain.payer,
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server.pubkey(),
+        &server_groups[0],
+        &CreateGroupInput { name: [66; 32] },
+        blockchain.last_blockhash,
+    );
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let trx = add_channel_transaction(
+        &blockchain.payer,
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server.pubkey(),
+        &server_channels[0],
+        &AddChannelInput {
+            name: [66; 32],
+            type_id: 17,
+        },
+        blockchain.last_blockhash,
+    );
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let trx = add_channel_to_group_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server_channels[0],
+        &server_groups[0],
+        &group_channels[0],
+        blockchain.last_blockhash,
+    );
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
 }
 
-async fn create_derived_account_index(
+pub async fn create_derived_account_index(
     blockchain: &mut ProgramTestContext,
-    owner: &Keypair,
+    owner: &Pubkey,
     rent: solana_program::rent::Rent,
     seed: &str,
     index: u64,
     address_type: instruction::AddressTypeInput,
 ) -> Pubkey {
     let (address_to_create, base_program_address, ..) =
-        crate::program::create_base_index_with_seed(&id(), seed, &owner.pubkey(), index).unwrap();
+        crate::program::create_base_index_with_seed(&id(), seed, owner, index).unwrap();
     test_create_derived_account(
         blockchain,
-        &owner.pubkey(),
+        owner,
         &base_program_address,
         &address_to_create,
         address_type,
@@ -282,7 +430,7 @@ async fn create_derived_account_index(
     address_to_create
 }
 
-async fn test_initialize_dweller(
+pub async fn test_initialize_dweller(
     payer: &Keypair,
     dweller_owner: &Keypair,
     rent: solana_program::rent::Rent,
@@ -310,7 +458,7 @@ async fn test_initialize_dweller(
     blockchain.process_transaction(transaction).await.unwrap();
 }
 
-async fn test_add_administrator(
+pub async fn test_add_administrator(
     payer: &Keypair,
     dweller_owner: &Keypair,
     dweller: &Pubkey,
@@ -334,7 +482,7 @@ async fn test_add_administrator(
     blockchain.process_transaction(transaction).await.unwrap();
 }
 
-async fn test_initialize_server(
+pub async fn test_initialize_server(
     payer: &Keypair,
     dweller_owner: &Keypair,
     server: &Keypair,

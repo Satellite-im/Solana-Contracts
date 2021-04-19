@@ -20,11 +20,32 @@ pub enum Error {
     #[error("Invalid derived address")]
     InvalidDerivedAddress,
 
+    #[error("Invalid derived dweller server address")]
+    InvalidDerivedDwellerServerAddress,
+
+    #[error("Invalid derived server member status address")]
+    InvalidDerivedServerMemberStatusAddress,
+
+    #[error("Invalid derived server member address")]
+    InvalidDerivedServerMemberAddress,
+
+    #[error("Invalid derived server group address")]
+    InvalidDerivedServerGroupAddress,
+
+    #[error("Invalid derived server channel address")]
+    InvalidDerivedServerChannelAddress,
+
+    #[error("Invalid derived group channel address")]
+    InvalidDerivedGroupChannelAddress,
+
     #[error("Invalid derived server administrator address")]
     InvalidDerivedServerAdministratorAddress,
 
     #[error("Provided dweller is not the owner of the server")]
     ProvidedDwellerIsNotTheOwnerOfTheServer,
+
+    #[error("Invalid derived address wrong server")]
+    InvalidDerivedAddressWrongServer,
 }
 
 impl From<Error> for ProgramError {
