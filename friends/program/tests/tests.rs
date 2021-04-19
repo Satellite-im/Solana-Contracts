@@ -1,7 +1,7 @@
 #![cfg(feature = "test-bpf")]
 
 use borsh::BorshDeserialize;
-use sattelite_friends::*;
+use satellite_friends::*;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
 use solana_sdk::{
@@ -13,7 +13,7 @@ use solana_sdk::{
 
 pub fn program_test() -> ProgramTest {
     ProgramTest::new(
-        "sattelite_friends",
+        "satellite_friends",
         id(),
         processor!(processor::Processor::process_instruction),
     )

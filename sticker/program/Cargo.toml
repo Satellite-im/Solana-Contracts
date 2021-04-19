@@ -1,5 +1,5 @@
 [package]
-name = "satellite-friends"
+name = "satellite-stickers"
 version = "0.1.0"
 edition = "2018"
 
@@ -14,10 +14,13 @@ num_enum = "0.5.1"
 solana-program = "1.6.5"
 thiserror = "1.0"
 borsh = "0.8.2"
+spl-token = { git="https://github.com/solana-labs/solana-program-library", features = [ "no-entrypoint" ] }
+spl-nft-erc-721 = { path="../../solana_nft/program", features = [ "no-entrypoint" ] }
 
 [dev-dependencies]
 solana-program-test = "1.6.5"
 solana-sdk = "1.6.5"
+url = "2.2.1"
 
 [lib]
 crate-type = ["cdylib", "lib"]
