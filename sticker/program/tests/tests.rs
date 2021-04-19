@@ -36,6 +36,7 @@ pub async fn create_account(
     account_to_create: &Keypair,
     lamports: u64,
     space: u64,
+    owner: &Pubkey,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
         &[system_instruction::create_account(
@@ -43,7 +44,7 @@ pub async fn create_account(
             &account_to_create.pubkey(),
             lamports,
             space,
-            &id(),
+            owner,
         )],
         Some(&program_context.payer.pubkey()),
     );
@@ -188,7 +189,8 @@ pub async fn create_new_sticker(
     mint: &Pubkey,
     artist: &Pubkey,
     user: &Keypair,
-    args: CreateNewSticker,
+    mint_authority: &Pubkey,
+    args: instruction::CreateNewSticker,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
         &[instruction::create_new_sticker(
@@ -198,6 +200,7 @@ pub async fn create_new_sticker(
             mint,
             artist,
             &user.pubkey(),
+            mint_authority,
             args,
         )
         .unwrap()],
@@ -229,6 +232,7 @@ async fn test_create_account_instruction() {
         &sticker_factory,
         sticker_factory_min_rent,
         state::StickerFactory::LEN as u64,
+        &id(),
     )
     .await
     .unwrap();
@@ -258,6 +262,7 @@ async fn test_register_artist_instruction() {
         &sticker_factory,
         sticker_factory_min_rent,
         state::StickerFactory::LEN as u64,
+        &id(),
     )
     .await
     .unwrap();
@@ -338,12 +343,14 @@ async fn test_create_new_sticker_instruction() {
     let rent = program_context.banks_client.get_rent().await.unwrap();
     let sticker_factory_min_rent = rent.minimum_balance(state::StickerFactory::LEN);
     let token_account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+    let nft_mint_rent = rent.minimum_balance(spl_nft_erc_721::state::Mint::LEN as usize);
 
     create_account(
         &mut program_context,
         &sticker_factory,
         sticker_factory_min_rent,
         state::StickerFactory::LEN as u64,
+        &id(),
     )
     .await
     .unwrap();
@@ -362,7 +369,7 @@ async fn test_create_new_sticker_instruction() {
 
     let (base, _) =
         Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
-    let address_to_create = Pubkey::create_with_seed(
+    let artist_key = Pubkey::create_with_seed(
         &base,
         &format!(
             "{:?}{:?}",
@@ -376,7 +383,7 @@ async fn test_create_new_sticker_instruction() {
         &mut program_context,
         &sticker_factory.pubkey(),
         &base,
-        &address_to_create,
+        &artist_key,
         instruction::AddressType::Artist,
     )
     .await
@@ -405,7 +412,7 @@ async fn test_create_new_sticker_instruction() {
         &mut program_context,
         &artist_user.pubkey(),
         &artist_token_acc.pubkey(),
-        &address_to_create,
+        &artist_key,
         &sticker_factory_owner,
         &sticker_factory.pubkey(),
         artist_data,
@@ -415,7 +422,7 @@ async fn test_create_new_sticker_instruction() {
 
     let (base, _) =
         Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
-    let address_to_create = Pubkey::create_with_seed(
+    let sticker_key = Pubkey::create_with_seed(
         &base,
         &format!(
             "{:?}{:?}",
@@ -429,20 +436,37 @@ async fn test_create_new_sticker_instruction() {
         &mut program_context,
         &sticker_factory.pubkey(),
         &base,
-        &address_to_create,
+        &sticker_key,
         instruction::AddressType::Sticker,
     )
     .await
     .unwrap();
 
+    let nft_mint = Keypair::new();
+
+    // create nft mint account
+    create_account(&mut program_context, &nft_mint, nft_mint_rent, spl_nft_erc_721::state::Mint::LEN, &spl_nft_erc_721::id()).await.unwrap();
+
+    let (mint_auth, _) =
+            Pubkey::find_program_address(&[&sticker_key.to_bytes()[..32]], &id());
+    
+    let sticker_data = instruction::CreateNewSticker {
+        max_supply: 1000,
+        price: 100,
+        uri: [5; 256],
+        symbol: [7; 8],
+        name: [6; 32],
+    };
+
     create_new_sticker(
         &mut program_context,
-        &address_to_create,
+        &sticker_key,
         &sticker_factory.pubkey(),
-        mint: &Pubkey,
-        artist: &Pubkey,
-        user: &Keypair,
-        args: CreateNewSticker,
+        &nft_mint.pubkey(),
+        &artist_key,
+        &artist_user,
+        &mint_auth,
+        sticker_data,
     )
     .await
     .unwrap();

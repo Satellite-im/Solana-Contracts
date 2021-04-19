@@ -31,7 +31,6 @@ impl Processor {
     pub const STICKER_SEED: &'static str = "sticker";
 
     /// Transfer tokens with authority
-    #[allow(clippy::too_many_arguments)]
     fn transfer<'a>(
         token_program_id: AccountInfo<'a>,
         source_account: AccountInfo<'a>,
@@ -58,7 +57,32 @@ impl Processor {
         )
     }
 
+    /// Initialize sticker mint
+    fn initialize_nft_mint<'a>(
+        nft_program_id: AccountInfo<'a>,
+        mint: AccountInfo<'a>,
+        authority: AccountInfo<'a>,
+        symbol: [u8; 8],
+        name: [u8; 32],
+        sticker_key: &Pubkey,
+        bump_seed: u8,
+    ) -> ProgramResult {
+        let authority_signature_seeds = [&sticker_key.to_bytes()[..32], &[bump_seed]];
+        let signers = &[&authority_signature_seeds[..]];
+        let mint_data = spl_nft_erc_721::instruction::MintData { symbol, name };
+        invoke_signed(
+            &spl_nft_erc_721::instruction::NftInstruction::initialize_mint(
+                mint.key,
+                mint_data,
+                authority.key,
+            ),
+            &[nft_program_id, mint, authority],
+            signers,
+        )
+    }
+
     /// Mint new sticker
+    #[allow(clippy::too_many_arguments)]
     fn create_new_sticker<'a>(
         nft_program_id: AccountInfo<'a>,
         token_account: AccountInfo<'a>,
@@ -207,6 +231,8 @@ impl Processor {
         let mint_account_info = next_account_info(account_info_iter)?;
         let artist_account_info = next_account_info(account_info_iter)?;
         let user_account_info = next_account_info(account_info_iter)?;
+        let mint_authority_account_info = next_account_info(account_info_iter)?;
+        let nft_token_program_id = next_account_info(account_info_iter)?;
         let rent_account_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_account_info)?;
 
@@ -233,11 +259,26 @@ impl Processor {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        // TODO: call nft program and initialize mint
         let nft_mint = Mint::try_from_slice(&mint_account_info.data.borrow())?;
-        if !nft_mint.is_initialized() {
-            return Err(ProgramError::UninitializedAccount);
+        if nft_mint.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized);
         }
+
+        let (generated_mint_auth, bump_seed) =
+            Pubkey::find_program_address(&[&sticker_account_info.key.to_bytes()[..32]], program_id);
+        if generated_mint_auth != *mint_authority_account_info.key {
+            return Err(StickerProgramError::WrongTokenMintAuthority.into());
+        }
+
+        Self::initialize_nft_mint(
+            nft_token_program_id.clone(),
+            mint_account_info.clone(),
+            mint_authority_account_info.clone(),
+            args.symbol,
+            args.name,
+            sticker_account_info.key,
+            bump_seed,
+        )?;
 
         let artist = Artist::try_from_slice(&artist_account_info.data.borrow())?;
         if !artist.is_initialized() {
@@ -345,6 +386,8 @@ impl Processor {
             return Err(StickerProgramError::WrongTokenMintAuthority.into());
         }
 
+        // TODO: add check max supply variable
+
         Self::transfer(
             token_program_id.clone(),
             buyer_token_account_info.clone(),
@@ -365,6 +408,8 @@ impl Processor {
             *sticker_to_buy_account_info.key, // TODO: ask bout it
             sticker.uri,
         )?;
+
+        // TODO: increment max supply variable
 
         Ok(())
     }

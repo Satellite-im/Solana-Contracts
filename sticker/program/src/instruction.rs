@@ -28,6 +28,10 @@ pub struct CreateNewSticker {
     pub price: u64,
     /// URI
     pub uri: [u8; 256],
+    /// Symbol
+    pub symbol: [u8; 8],
+    /// Name
+    pub name: [u8; 32],
 }
 
 /// Address type
@@ -159,6 +163,7 @@ pub fn create_new_sticker(
     mint: &Pubkey,
     artist: &Pubkey,
     user: &Pubkey,
+    mint_authority: &Pubkey,
     args: CreateNewSticker,
 ) -> Result<Instruction, ProgramError> {
     let init_data = StickerInstruction::CreateNewSticker(args);
@@ -166,9 +171,11 @@ pub fn create_new_sticker(
     let accounts = vec![
         AccountMeta::new(*sticker, false),
         AccountMeta::new(*sticker_factory, false),
-        AccountMeta::new_readonly(*mint, false),
+        AccountMeta::new(*mint, false),
         AccountMeta::new_readonly(*artist, false),
         AccountMeta::new_readonly(*user, true),
+        AccountMeta::new_readonly(*mint_authority, false),
+        AccountMeta::new_readonly(spl_nft_erc_721::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
     ];
     Ok(Instruction {
