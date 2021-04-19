@@ -1,146 +1,1272 @@
-// //! Program state processor
-// use borsh::BorshDeserialize;
-// use solana_program::{
-//     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-//     program_pack::Pack, pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
-// };
-// use spl_token::state::{Account, Mint};
+//! Program state processor
 
-// use super::borsh::*;
-// use crate::{
-//     error::PoolError,
-//     instruction::{InitializeAssetInput, Instruction},
-//     state::*,
-// };
+use super::borsh::*;
+use crate::{
+    borsh::{AccountWithBorsh, BorshSerializeConst},
+    error::Error,
+    instruction::*,
+    program::{create_index_with_seed, create_seeded_rent_except_account, swap_last_to_default},
+    state::*,
+};
 
-// /// Program state handler.
-// pub struct Processor {}
-// impl Processor {
-//     #[allow(clippy::too_many_arguments)]
-//     fn initialize_asset<'a>(
-//         program_id: &Pubkey,
-//         rent: &AccountInfo<'a>,
-//         pool: &AccountInfo<'a>,
-//         asset: &AccountInfo<'a>,
-//         token: &AccountInfo<'a>,
-//         input: &InitializeAssetInput,
-//     ) -> ProgramResult {
-//         let rent = Rent::from_account_info(rent)?;
-//         if rent.is_exempt(asset.lamports(), AssetState::len())
-//             && rent.is_exempt(token.lamports(), Account::LEN)
-//         {
-//             let token = token.try_borrow_data()?;
-//             let token = spl_token::state::Account::unpack_from_slice(&token[..])?;
-//             let (authority, _) =
-//                 Pubkey::find_program_address(&[&asset.key.to_bytes()[..32]], &program_id);
-//             if token.owner == authority {
-//                 let mut state: AssetState = asset.read_data_with_borsh()?;
-//                 if state.version == AssetVersion::Uninitialized {
-//                     state.version = AssetVersion::InitializedV1;
-//                     state.weight = input.weight;
-//                     // consider validation that token of specific token program ownership
-//                     //state.token = token.key;
-//                     state.pool = *pool.key;
-//                     let mut data = asset.try_borrow_mut_data()?;
-//                     state.serialize_const(&mut data[..])?;
-//                     Ok(())
-//                 } else {
-//                     Err(ProgramError::AccountAlreadyInitialized)
-//                 }
-//             } else {
-//                 Err(PoolError::TokenMustBeUnderAssetAuthority.into())
-//             }
-//         } else {
-//             Err(ProgramError::AccountNotRentExempt)
-//         }
-//     }
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
+};
 
-//     #[allow(clippy::too_many_arguments)]
-//     fn initialize_pool<'a>(
-//         program_id: &Pubkey,
-//         rent: &AccountInfo<'a>,
-//         _program_token: &AccountInfo<'a>,
-//         pool: &AccountInfo<'a>,
-//         pool_mint: &AccountInfo<'a>, // to initialize mint we need pool_token mint_to, and default value of tokens in pool. there are 2 options - create account out of chain and pass or on chain; and authority could be pool or not
-//         assets: &'_ [AccountInfo<'_>],
-//     ) -> ProgramResult {
-//         let rent = Rent::from_account_info(rent)?;
-//         if rent.is_exempt(pool.lamports(), PoolState::len())
-//             && rent.is_exempt(pool_mint.lamports(), Mint::LEN)
-//         {
-//             let weight_total = {
-//                 let assets: Result<Vec<AssetState>, ProgramError> = assets
-//                     .iter()
-//                     .map(|x| x.read_data_with_borsh::<AssetState>())
-//                     .collect();
-//                 let assets = assets?;
-//                 if assets
-//                     .iter()
-//                     .any(|x| x.version == AssetVersion::Uninitialized || x.pool != *pool.key)
-//                 {
-//                     return Err(ProgramError::UninitializedAccount);
-//                 }
-//                 assets.iter().map(|x| x.weight).sum()
-//             };
+use super::prelude::*;
 
-//             let seeds: Vec<_> = assets.iter().map(|x| x.key.to_bytes()).collect();
+/// Program state handler.
+pub struct Processor {}
+impl Processor {
+    fn initialize_dweller<'a>(
+        _program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &InitializeDwellerInput,
+    ) -> ProgramResult {
+        let mut data = dweller.try_borrow_mut_data()?;
+        let mut state = Dweller::deserialize_const(&data)?;
+        if state.version == StateVersion::Uninitialized {
+            state.version = StateVersion::V1;
+            state.name = input.name;
+            state.serialize_const(&mut data)?;
+            Ok(())
+        } else {
+            Err(ProgramError::AccountAlreadyInitialized)
+        }
+    }
 
-//             let mut state: PoolState = pool.read_data_with_borsh()?;
-//             if state.version == PoolVersion::Uninitialized {
-//                 state.version = PoolVersion::InitializedV1;
-//                 // may consider validating mint is really mint of token program
-//                 state.pool_mint = *pool_mint.key;
-//                 state.weight_total = weight_total;
-//                 // may consider sorting keys before hashing
-//                 let seeds: Vec<&[u8]> = seeds.iter().map(|x| &x[..]).collect();
-//                 state.assets_hash = Pubkey::find_program_address(&seeds[..], program_id).0;
-//                 let mut data = pool.try_borrow_mut_data()?;
-//                 state.serialize_const(&mut data[..])?;
-//                 Ok(())
-//             } else {
-//                 Err(ProgramError::AccountAlreadyInitialized)
-//             }
-//         } else {
-//             Err(ProgramError::AccountNotRentExempt)
-//         }
-//     }
+    fn set_dweller_name<'a>(
+        _program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &SetNameInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut data = dweller.try_borrow_mut_data()?;
+            let mut state = Dweller::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.name = input.name;
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
 
-//     /// Processes an instruction
-//     pub fn process_instruction(
-//         program_id: &Pubkey,
-//         accounts: &[AccountInfo],
-//         input: &[u8],
-//     ) -> ProgramResult {
-//         let instruction = Instruction::try_from_slice(&input[0..1])?;
-//         match instruction {
-//             Instruction::InitializeAsset => {
-//                 msg!("Instruction: InitializeAsset");
-//                 match accounts {
-//                     [rent, pool, asset, token, ..] => {
-//                         let input = super::instruction::InitializeAssetInput::deserialize_const(
-//                             &input[1..],
-//                         )?;
+    fn set_dweller_photo<'a>(
+        _program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &SetHashInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut data = dweller.try_borrow_mut_data()?;
+            let mut state = Dweller::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.photo_hash = input.hash;
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
 
-//                         Self::initialize_asset(program_id, rent, pool, asset, token, &input)
-//                     }
-//                     _ => Err(ProgramError::NotEnoughAccountKeys),
-//                 }
-//             }
-//             Instruction::InitializePool => {
-//                 msg!("Instruction: InitializeAsset");
-//                 match accounts {
-//                     [rent, program_token, pool, pool_mint, _, _, ..] => Self::initialize_pool(
-//                         program_id,
-//                         rent,
-//                         program_token,
-//                         pool,
-//                         pool_mint,
-//                         &accounts[4..],
-//                     ),
-//                     _ => Err(ProgramError::NotEnoughAccountKeys),
-//                 }
-//             }
-//             _ => todo!(),
-//         }
-//     }
-// }
+    fn set_server_name<'a>(
+        _program_id: &Pubkey,
+        admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        input: &SetNameInput,
+    ) -> ProgramResult {
+        if admin.is_signer {
+            let mut data = server.try_borrow_mut_data()?;
+            let mut state = Server::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.name = input.name;
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn set_server_db<'a>(
+        _program_id: &Pubkey,
+        admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        input: &SetHashInput,
+    ) -> ProgramResult {
+        if admin.is_signer {
+            let mut data = server.try_borrow_mut_data()?;
+            let mut state = Server::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.db_hash = input.hash;
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn set_dweller_status<'a>(
+        _program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        input: &SetDwellerStatusInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut data = dweller.try_borrow_mut_data()?;
+            let mut state = Dweller::deserialize_const(&data)?;
+            if state.version == StateVersion::V1 {
+                state.version = StateVersion::V1;
+                state.status = input.status;
+                state.serialize_const(&mut data)?;
+                Ok(())
+            } else {
+                Err(ProgramError::UninitializedAccount)
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn initialize_server<'a>(
+        program_id: &Pubkey,
+        dweller_owner: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
+        server_member: &AccountInfo<'a>,
+        input: &InitializeServerInput,
+    ) -> ProgramResult {
+        let mut dweller_data = dweller_owner.try_borrow_mut_data()?;
+        let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
+
+        let mut server_data = server.try_borrow_mut_data()?;
+        let mut server_state = Server::deserialize_const(&server_data)?;
+
+        if server_state.version == StateVersion::Uninitialized {
+            server_state.name = input.name;
+            let server_member_key = create_index_with_seed(
+                program_id,
+                ServerMember::SEED,
+                server.key,
+                server_state.members,
+            )?;
+
+            let dweller_server_key = create_index_with_seed(
+                program_id,
+                DwellerServer::SEED,
+                dweller_owner.key,
+                dweller_state.servers,
+            )?;
+
+            if *server_member.key == server_member_key && dweller_server_key == *dweller_server.key
+            {
+                let mut server_member_data = server_member.try_borrow_mut_data()?;
+                let mut server_member_state = ServerMember::deserialize_const(&server_member_data)?;
+
+                server_member_state.version = StateVersion::V1;
+                server_member_state.container = *server.key;
+                server_member_state.dweller = *dweller_owner.key;
+                server_state.owner = *dweller_owner.key;
+
+                let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
+                let mut dweller_server_state =
+                    DwellerServer::deserialize_const(&dweller_server_data)?;
+
+                dweller_server_state.version = StateVersion::V1;
+                dweller_server_state.server = *server.key;
+                dweller_server_state.container = *dweller_owner.key;
+
+                server_state.members = server_state.members.error_increment()?;
+
+                server_state.name = input.name;
+
+                dweller_state.servers = dweller_state.servers.error_increment()?;
+
+                dweller_state.serialize_const(&mut dweller_data)?;
+                server_state.serialize_const(&mut server_data)?;
+                server_member_state.serialize_const(&mut server_member_data)?;
+                dweller_server_state.serialize_const(&mut dweller_server_data)?;
+
+                Ok(())
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::AccountAlreadyInitialized)
+        }
+    }
+
+    fn add_channel<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_channel: &AccountInfo<'a>,
+        input: &AddChannelInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut server_data = server.try_borrow_mut_data()?;
+            let mut server_state = Server::deserialize_const(&server_data)?;
+
+            let channel_key = create_index_with_seed(
+                program_id,
+                ServerChannel::SEED,
+                server.key,
+                server_state.channels,
+            )?;
+
+            if channel_key == *server_channel.key {
+                let server_administrator_state =
+                    server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
+                if server_administrator_state.dweller == *dweller.key {
+                    let administrator_member_key = create_index_with_seed(
+                        program_id,
+                        ServerAdministrator::SEED,
+                        server.key,
+                        server_administrator_state.index,
+                    )?;
+                    if administrator_member_key == *server_administrator.key {
+                        let mut channel_data = server_channel.try_borrow_mut_data()?;
+                        let mut channel_state = ServerChannel::deserialize_const(&channel_data)?;
+                        let server_channel_key = create_index_with_seed(
+                            program_id,
+                            ServerChannel::SEED,
+                            server.key,
+                            server_state.channels,
+                        )?;
+
+                        if server_channel_key == *server_channel.key {
+                            channel_state.version = StateVersion::V1;
+                            channel_state.container = *server.key;
+                            channel_state.name = input.name;
+                            server_state.channels = server_state.channels.error_increment()?;
+
+                            channel_state.index = server_state.groups;
+                            channel_state.serialize_const(&mut channel_data)?;
+                            server_state.serialize_const(&mut server_data)?;
+
+                            Ok(())
+                        } else {
+                            Err(Error::InvalidDerivedAddress.into())
+                        }
+                    } else {
+                        Err(Error::InvalidDerivedAddress.into())
+                    }
+                } else {
+                    Err(Error::InvalidDerivedAddress.into())
+                }
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn create_group<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_group: &AccountInfo<'a>,
+        input: &CreateGroupInput,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut server_data = server.try_borrow_mut_data()?;
+            let mut server_state = Server::deserialize_const(&server_data)?;
+
+            let group_key = create_index_with_seed(
+                program_id,
+                ServerGroup::SEED,
+                server.key,
+                server_state.groups,
+            )?;
+
+            if group_key == *server_group.key {
+                let server_administrator_state: ServerAdministrator =
+                    server_administrator.read_data_with_borsh()?;
+                if server_administrator_state.dweller == *dweller.key {
+                    let administrator_member_key = create_index_with_seed(
+                        program_id,
+                        ServerAdministrator::SEED,
+                        server.key,
+                        server_administrator_state.index,
+                    )?;
+                    if administrator_member_key == *server_administrator.key {
+                        let mut group_data = server_group.try_borrow_mut_data()?;
+                        let mut group_state = ServerGroup::deserialize_const(&group_data)?;
+                        let channel_key = create_index_with_seed(
+                            program_id,
+                            ServerChannel::SEED,
+                            server.key,
+                            server_state.groups,
+                        )?;
+
+                        if channel_key == *server_group.key {
+                            group_state.container = *server.key;
+                            group_state.name = input.name;
+                            group_state.version = StateVersion::V1;
+                            server_state.groups = server_state.groups.error_increment()?;
+
+                            group_state.index = server_state.groups;
+                            group_state.serialize_const(&mut group_data)?;
+                            server_state.serialize_const(&mut server_data)?;
+
+                            Ok(())
+                        } else {
+                            Err(Error::InvalidDerivedAddress.into())
+                        }
+                    } else {
+                        Err(Error::InvalidDerivedAddress.into())
+                    }
+                } else {
+                    Err(Error::InvalidDerivedAddress.into())
+                }
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn add_admin<'a>(
+        program_id: &Pubkey,
+        owner: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if owner.is_signer {
+            let (mut server_data, mut server_state) =
+                server.read_data_with_borsh_mut::<Server>()?;
+            require_owner(&server_state, owner)?;
+
+            let administrator_key = create_index_with_seed(
+                program_id,
+                ServerAdministrator::SEED,
+                server.key,
+                server_state.administrators,
+            )?;
+
+            if administrator_key == *server_administrator.key {
+                let (mut server_administrator_data, mut server_administrator_state) =
+                    server_administrator.read_data_with_borsh_mut::<ServerAdministrator>()?;
+                if server_administrator_state.version == StateVersion::Uninitialized {
+                    server_administrator_state.container = *server.key;
+                    server_administrator_state.dweller = *dweller.key;
+                    server_administrator_state.version = StateVersion::V1;
+                    server_state.administrators = server_state.administrators.error_increment()?;
+
+                    server_administrator_state.index = server_state.administrators;
+                    server_administrator_state.serialize_const(&mut server_administrator_data)?;
+                    server_state.serialize_const(&mut server_data)?;
+
+                    Ok(())
+                } else {
+                    Err(ProgramError::AccountAlreadyInitialized)
+                }
+            } else {
+                Err(Error::InvalidDerivedServerAdministratorAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    fn remove_admin<'a>(
+        _program_id: &Pubkey,
+        owner: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        admin: &AccountInfo<'a>,
+        admin_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        let server_data = server.try_borrow_mut_data()?;
+        let mut server_state = Server::deserialize_const(&server_data)?;
+        if server_state.owner == *owner.key && owner.is_signer {
+            let last_key = crate::program::create_index_with_seed(
+                &crate::id(),
+                ServerAdministrator::SEED,
+                server.key,
+                server_state.administrators,
+            )?;
+            if last_key == *admin_last.key {
+                crate::program::swap_last_to_default::<ServerAdministrator>(admin, admin_last)?;
+                server_state.administrators = server_state.administrators.error_decrement()?;
+                return Ok(());
+            }
+        }
+        Err(ProgramError::MissingRequiredSignature)
+    }
+
+    fn revoke_invite_server<'a>(
+        _program_id: &Pubkey,
+        _admin: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        member_status: &AccountInfo<'a>,
+        member_status_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        // TODO: validate admin is admin of the server and signer
+        // TODO: validate derived addresses are correct (read to get index etc)
+
+        let server_data = server.try_borrow_mut_data()?;
+        let mut server_state = Server::deserialize_const(&server_data)?;
+
+        crate::program::swap_last_to_default::<ServerMemberStatus>(
+            member_status,
+            member_status_last,
+        )?;
+        server_state.member_statuses = server_state.member_statuses.error_decrement()?;
+
+        Ok(())
+    }
+
+    fn invite_to_server<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller_admin: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        member_status: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller_admin.is_signer {
+            let server_administrator_state =
+                server_administrator.read_data_with_borsh::<ServerAdministrator>()?;
+
+            let administrator_key = create_index_with_seed(
+                program_id,
+                ServerAdministrator::SEED,
+                server.key,
+                server_administrator_state.index,
+            )?;
+
+            if administrator_key == *server_administrator.key {
+                let mut server_data = server.try_borrow_mut_data()?;
+                let mut server_state = Server::deserialize_const(&server_data)?;
+
+                let member_status_key = create_index_with_seed(
+                    program_id,
+                    ServerMember::SEED,
+                    server.key,
+                    server_state.member_statuses,
+                )?;
+
+                if member_status_key == *member_status.key {
+                    let member_status_data = member_status.try_borrow_mut_data()?;
+                    let mut member_status_state =
+                        ServerMemberStatus::deserialize_const(&member_status_data)?;
+
+                    member_status_state.container = *server.key;
+                    member_status_state.version = StateVersion::V1;
+                    member_status_state.dweller = *dweller.key;
+
+                    server_state.member_statuses =
+                        server_state.member_statuses.error_increment()?;
+
+                    member_status_state.index = server_state.member_statuses;
+
+                    server_state.serialize_const(&mut server_data)?;
+
+                    server_state.serialize_const(&mut server_data)?;
+                    Ok(())
+                } else {
+                    Err(Error::InvalidDerivedAddress.into())
+                }
+            } else {
+                Err(Error::InvalidDerivedAddress.into())
+            }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
+        }
+    }
+
+    /// Create derived
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_derived_address<'a>(
+        program_id: &Pubkey,
+        payer_account_info: &AccountInfo<'a>,
+        owner_account_info: &AccountInfo<'a>,
+        base_account_info: &AccountInfo<'a>,
+        account_to_create_info: &AccountInfo<'a>,
+        rent_account_info: &AccountInfo<'a>,
+        _system_program: &AccountInfo<'a>,
+        input: &AddressTypeInput,
+    ) -> ProgramResult {
+        let rent = &Rent::from_account_info(rent_account_info)?;
+        if system_program::id() != *_system_program.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+        match input {
+            AddressTypeInput::DwellerServer(index) => create_seeded_rent_except_account(
+                DwellerServer::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                DwellerServer::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerMemberStatus(index) => create_seeded_rent_except_account(
+                ServerMemberStatus::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerMemberStatus::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerAdministrator(index) => create_seeded_rent_except_account(
+                ServerAdministrator::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerAdministrator::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerMember(index) => create_seeded_rent_except_account(
+                ServerMember::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerMember::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerChannel(index) => create_seeded_rent_except_account(
+                ServerChannel::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerChannel::LEN,
+                program_id,
+            ),
+            AddressTypeInput::ServerGroup(index) => create_seeded_rent_except_account(
+                ServerGroup::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                ServerGroup::LEN,
+                program_id,
+            ),
+            AddressTypeInput::GroupChannel(index) => create_seeded_rent_except_account(
+                GroupChannel::SEED,
+                owner_account_info,
+                index,
+                base_account_info,
+                account_to_create_info,
+                payer_account_info,
+                rent,
+                GroupChannel::LEN,
+                program_id,
+            ),
+        }
+    }
+
+    /// Processes an instruction
+    pub fn process_instruction(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        input: &[u8],
+    ) -> ProgramResult {
+        let instruction = Instruction::try_from_slice(&input[0..1])?;
+        match instruction {
+            Instruction::CreateDerivedAccount => {
+                msg!("Instruction: CreateDerivedAccount");
+                match accounts {
+                    [payer_account_info, owner_account_info, base_account_info, account_to_create_info, rent_account_info, system_program, ..] =>
+                    {
+                        let input =
+                            super::instruction::AddressTypeInput::deserialize_const(&input[1..])?;
+                        Self::create_derived_address(
+                            program_id,
+                            payer_account_info,
+                            owner_account_info,
+                            base_account_info,
+                            account_to_create_info,
+                            rent_account_info,
+                            system_program,
+                            &input,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::InitializeDweller => {
+                msg!("Instruction: InitializeDweller");
+                match accounts {
+                    [dweller, ..] => {
+                        let input = super::instruction::InitializeDwellerInput::deserialize_const(
+                            &input[1..],
+                        )?;
+
+                        Self::initialize_dweller(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::InitializeServer => {
+                msg!("Instruction: InitializeServer");
+                match accounts {
+                    [dweller_owner, server, dweller_server, server_member, ..] => {
+                        let input = super::instruction::InitializeServerInput::deserialize_const(
+                            &input[1..],
+                        )?;
+
+                        Self::initialize_server(
+                            program_id,
+                            dweller_owner,
+                            server,
+                            dweller_server,
+                            server_member,
+                            &input,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetDwellerName => {
+                msg!("Instruction: SetDwellerName");
+                match accounts {
+                    [dweller, ..] => {
+                        let input =
+                            super::instruction::SetNameInput::deserialize_const(&input[1..])?;
+
+                        Self::set_dweller_name(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetDwellerPhoto => {
+                msg!("Instruction: SetDwellerPhoto");
+                match accounts {
+                    [dweller, ..] => {
+                        let input =
+                            super::instruction::SetHashInput::deserialize_const(&input[1..])?;
+
+                        Self::set_dweller_photo(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetDwellerStatus => {
+                msg!("Instruction: SetDwellerStatus");
+                match accounts {
+                    [dweller, ..] => {
+                        let input = super::instruction::SetDwellerStatusInput::deserialize_const(
+                            &input[1..],
+                        )?;
+
+                        Self::set_dweller_status(program_id, dweller, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::AddChannel => {
+                msg!("Instruction: AddChannel");
+                match accounts {
+                    [dweller, server_administrator, server, server_channel, ..] => {
+                        let input =
+                            super::instruction::AddChannelInput::deserialize_const(&input[1..])?;
+
+                        Self::add_channel(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_channel,
+                            &input,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::CreateGroup => {
+                msg!("Instruction: CreateGroup");
+                match accounts {
+                    [dweller, server_administrator, server, server_group, ..] => {
+                        let input =
+                            super::instruction::CreateGroupInput::deserialize_const(&input[1..])?;
+
+                        Self::create_group(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_group,
+                            &input,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::AddAdmin => {
+                msg!("Instruction: AddAdmin");
+                match accounts {
+                    [owner, dweller, server, server_administrator, ..] => {
+                        Self::add_admin(program_id, owner, dweller, server, server_administrator)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::InviteToServer => {
+                msg!("Instruction: InviteToServer");
+                match accounts {
+                    [server, dweller_admin, server_administrator, dweller, member_status, ..] => {
+                        Self::invite_to_server(
+                            program_id,
+                            server,
+                            dweller_admin,
+                            server_administrator,
+                            dweller,
+                            member_status,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::RemoveAdmin => {
+                msg!("Instruction: RemoveAdmin");
+                match accounts {
+                    [owner, server, admin, admin_last, ..] => {
+                        Self::remove_admin(program_id, owner, server, admin, admin_last)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::RevokeInviteServer => {
+                msg!("Instruction: RevokeInviteServer");
+                match accounts {
+                    [admin, server, member_status, member_status_last, ..] => {
+                        Self::revoke_invite_server(
+                            program_id,
+                            admin,
+                            server,
+                            member_status,
+                            member_status_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::SetServerName => {
+                msg!("Instruction: SetServerName");
+                match accounts {
+                    [admin, server, ..] => {
+                        let input =
+                            super::instruction::SetNameInput::deserialize_const(&input[1..])?;
+
+                        Self::set_server_name(program_id, admin, server, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::SetServerDb => {
+                msg!("Instruction: SetServerDb");
+                match accounts {
+                    [admin, server, ..] => {
+                        let input =
+                            super::instruction::SetHashInput::deserialize_const(&input[1..])?;
+
+                        Self::set_server_db(program_id, admin, server, &input)
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::JoinServer => {
+                msg!("Instruction: JoinServer");
+                match accounts {
+                    [server, server_member, server_member_status, dweller, dweller_server, ..] => {
+                        Self::join_server(
+                            program_id,
+                            server,
+                            server_member,
+                            server_member_status,
+                            dweller,
+                            dweller_server,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::LeaveServer => {
+                msg!("Instruction: LeaveServer");
+                match accounts {
+                    [server, server_member, server_member_last, dweller, dweller_server, dweller_server_last, ..] => {
+                        Self::leave_server(
+                            program_id,
+                            server,
+                            server_member,
+                            server_member_last,
+                            dweller,
+                            dweller_server,
+                            dweller_server_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+            Instruction::AddChannelToGroup => {
+                msg!("Instruction: AddChannelToGroup");
+                match accounts {
+                    [server, dweller, server_admin, group, channel, group_channel, ..] => {
+                        Self::add_channel_to_group(
+                            program_id,
+                            server,
+                            dweller,
+                            server_admin,
+                            group,
+                            channel,
+                            group_channel,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::RemoveChannelFromGroup => {
+                msg!("Instruction: RemoveChannelFromGroup");
+                match accounts {
+                    [server, dweller, server_admin, channel, group, group_channel, group_channel_last, ..] => {
+                        Self::remove_channel_from_group(
+                            program_id,
+                            server,
+                            dweller,
+                            server_admin,
+                            channel,
+                            group,
+                            group_channel,
+                            group_channel_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::DeleteChannel => {
+                msg!("Instruction: DeleteChannel");
+                // ISSUE: in original Solidity contract channels are not deleted from groups
+                match accounts {
+                    [dweller, server_administrator, server, server_channel, server_channel_last, ..] => {
+                        Self::delete_channel(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_channel,
+                            server_channel_last,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+
+            Instruction::DeleteGroup => {
+                msg!("Instruction: DeleteGroup");
+                match accounts {
+                    [dweller, server_administrator, server, server_group, server_group_last, ..] => {
+                        let group_channels = &accounts[5..];
+                        Self::delete_group(
+                            program_id,
+                            dweller,
+                            server_administrator,
+                            server,
+                            server_group,
+                            server_group_last,
+                            group_channels,
+                        )
+                    }
+                    _ => Err(ProgramError::NotEnoughAccountKeys),
+                }
+            }
+        }
+    }
+
+    fn delete_group<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_group: &AccountInfo<'a>,
+        server_channel_last: &AccountInfo<'a>,
+        group_channels: &[AccountInfo<'a>],
+    ) -> ProgramResult {
+        require_admin(dweller, server, server_administrator)?;
+
+        let channel_state = server_group.read_data_with_borsh::<ServerGroup>()?;
+        let group_key = create_index_with_seed(
+            program_id,
+            ServerGroup::SEED,
+            server.key,
+            channel_state.index,
+        )?;
+        if group_key == *server_group.key {
+            for child in group_channels {
+                let child_state = server_group.read_data_with_borsh::<GroupChannel>()?;
+                let child_key = create_index_with_seed(
+                    program_id,
+                    GroupChannel::SEED,
+                    &group_key,
+                    child_state.index,
+                )?;
+
+                if child_key == *child.key {
+                    swap_last_to_default::<GroupChannel>(child, child)?;
+                }
+            }
+
+            swap_last_to_default::<ServerGroup>(server_group, server_channel_last)?;
+
+            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
+            state.groups = state.groups.error_decrement()?;
+            state.serialize_const(&mut data)?;
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
+    }
+
+    fn delete_channel<'a>(
+        program_id: &Pubkey,
+        dweller: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server: &AccountInfo<'a>,
+        server_channel: &AccountInfo<'a>,
+        server_channel_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        require_admin(dweller, server, server_administrator)?;
+
+        let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
+
+        let channel_key = create_index_with_seed(
+            program_id,
+            ServerChannel::SEED,
+            server.key,
+            channel_state.index,
+        )?;
+        if channel_key == *server_channel.key {
+            swap_last_to_default::<ServerChannel>(server_channel, server_channel_last)?;
+
+            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
+            state.channels = state.channels.error_decrement()?;
+            state.serialize_const(&mut data)?;
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn remove_channel_from_group<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        server_admin: &AccountInfo<'a>,
+        _channel: &AccountInfo<'a>,
+        group: &AccountInfo<'a>,
+        group_channel: &AccountInfo<'a>,
+        group_channel_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        require_admin(dweller, server, server_admin)?;
+
+        let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
+        let group_channel_key = create_index_with_seed(
+            program_id,
+            GroupChannel::SEED,
+            group.key,
+            group_channel_data.index,
+        )?;
+        if group_channel_key == *group_channel.key {
+            swap_last_to_default::<GroupChannel>(group_channel, group_channel_last)?;
+
+            let (mut group_data, mut group_state) =
+                group.read_data_with_borsh_mut::<ServerGroup>()?;
+            group_state.channels = group_state.channels.error_decrement()?;
+            group_state.serialize_const(&mut group_data)?;
+
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
+    }
+
+    fn add_channel_to_group<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        server_admin: &AccountInfo<'a>,
+        group: &AccountInfo<'a>,
+        group_channel: &AccountInfo<'a>,
+        channel: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        require_admin(dweller, server, server_admin)?;
+
+        let (mut group_data, mut group_state) = server.read_data_with_borsh_mut::<ServerGroup>()?;
+
+        let group_channel_key = create_index_with_seed(
+            program_id,
+            GroupChannel::SEED,
+            group.key,
+            group_state.channels,
+        )?;
+        if group_channel_key == *group_channel.key {
+            let (mut group_channel_data, mut group_channel_state) =
+                group_channel.read_data_with_borsh_mut::<GroupChannel>()?;
+
+            if group_channel_state.version == StateVersion::Uninitialized {
+                group_channel_state.container = *server.key;
+                group_channel_state.index = group_state.channels;
+                group_channel_state.channel = *channel.key;
+
+                group_state.channels = group_state.channels.error_increment()?;
+                group_channel_state.serialize_const(&mut group_channel_data)?;
+                group_state.serialize_const(&mut group_data)?;
+                return Ok(());
+            }
+        }
+
+        Err(Error::Failed.into())
+    }
+
+    fn leave_server<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        server_member: &AccountInfo<'a>,
+        server_member_last: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
+        dweller_server_last: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            remove_dweller_server(
+                dweller,
+                dweller_server,
+                server,
+                program_id,
+                dweller_server_last,
+            )?;
+            remove_server_member(
+                server,
+                server_member,
+                dweller,
+                program_id,
+                server_member_last,
+            )?;
+            return Ok(());
+        }
+
+        Err(Error::Failed.into())
+    }
+
+    fn join_server<'a>(
+        program_id: &Pubkey,
+        server: &AccountInfo<'a>,
+        server_member: &AccountInfo<'a>,
+        server_member_status: &AccountInfo<'a>,
+        dweller: &AccountInfo<'a>,
+        dweller_server: &AccountInfo<'a>,
+    ) -> ProgramResult {
+        if dweller.is_signer {
+            let mut dweller_data = dweller.try_borrow_mut_data()?;
+            let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
+
+            let dweller_server_key = create_index_with_seed(
+                program_id,
+                DwellerServer::SEED,
+                dweller.key,
+                dweller_state.servers,
+            )?;
+
+            if dweller_server_key == *dweller_server.key {
+                let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
+                let mut dweller_server_state =
+                    DwellerServer::deserialize_const(&dweller_server_data)?;
+                if dweller_server_state.version == StateVersion::Uninitialized {
+                    let server_member_status_state: ServerMemberStatus =
+                        server_member_status.read_data_with_borsh()?;
+
+                    let server_member_status_key = create_index_with_seed(
+                        program_id,
+                        ServerMemberStatus::SEED,
+                        server.key,
+                        server_member_status_state.index,
+                    )?;
+
+                    if server_member_status_key == *server_member_status.key
+                        && server_member_status_state.dweller == *dweller.key
+                        && server_member_status_state.container == *server.key
+                    {
+                        let mut server_data = server.try_borrow_mut_data()?;
+                        let mut server_state = Server::deserialize_const(&server_data)?;
+
+                        let server_member_key = create_index_with_seed(
+                            program_id,
+                            ServerMember::SEED,
+                            server.key,
+                            server_state.members,
+                        )?;
+
+                        if server_member_key == *server_member.key {
+                            let mut server_member_data = server_member.try_borrow_mut_data()?;
+                            let mut server_member_state =
+                                ServerMember::deserialize_const(&server_member_data)?;
+
+                            if server_member_state.version == StateVersion::Uninitialized {
+                                server_member_state.version = StateVersion::V1;
+                                server_member_state.container = *server.key;
+                                server_member_state.index = server_state.members;
+                                server_member_state.dweller = *dweller.key;
+
+                                dweller_server_state.container = *dweller.key;
+                                dweller_server_state.index = dweller_state.servers;
+                                dweller_server_state.version = StateVersion::V1;
+
+                                dweller_state.servers = dweller_state.servers.error_increment()?;
+
+                                server_state.members = server_state.members.error_decrement()?;
+
+                                server_state.serialize_const(&mut server_data)?;
+                                server_member_state.serialize_const(&mut server_member_data)?;
+                                dweller_server_state.serialize_const(&mut dweller_server_data)?;
+                                dweller_state.serialize_const(&mut dweller_data)?;
+
+                                return Ok(());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Err(Error::Failed.into())
+    }
+}
+
+fn require_owner<'a>(server_state: &Server, owner: &AccountInfo<'a>) -> ProgramResult {
+    if owner.is_signer {
+        if server_state.owner == *owner.key {
+            Ok(())
+        } else {
+            Err(Error::ProvidedDwellerIsNotTheOwnerOfTheServer.into())
+        }
+    } else {
+        Err(ProgramError::MissingRequiredSignature)
+    }
+}
+
+fn require_admin(
+    dweller: &AccountInfo,
+    server: &AccountInfo,
+    server_admin: &AccountInfo,
+) -> ProgramResult {
+    if dweller.is_signer {
+        let server_admin_state: ServerAdministrator = server_admin.read_data_with_borsh()?;
+        if server_admin_state.container == *server.key && server_admin_state.dweller == *dweller.key
+        {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+    }
+
+    Ok(())
+}
+
+fn remove_server_member(
+    server: &AccountInfo,
+    server_member: &AccountInfo,
+    dweller: &AccountInfo,
+    program_id: &Pubkey,
+    server_member_last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut server_data = server.try_borrow_mut_data()?;
+    let mut server_state = Server::deserialize_const(&server_data)?;
+    let server_member_state: ServerMember = server_member.read_data_with_borsh()?;
+    if server_member_state.container == *server.key && server_member_state.dweller == *dweller.key {
+        let server_member_key = create_index_with_seed(
+            program_id,
+            DwellerServer::SEED,
+            server.key,
+            server_member_state.index,
+        )?;
+
+        if server_member_key == *server_member.key {
+            crate::program::swap_last_to_default::<ServerMember>(
+                server_member,
+                server_member_last,
+            )?;
+            server_state.members = server_state.members.error_decrement()?;
+            server_state.serialize_const(&mut server_data)?;
+            return Ok(());
+        }
+    }
+
+    Err(Error::Failed.into())
+}
+
+fn remove_dweller_server(
+    dweller: &AccountInfo,
+    dweller_server: &AccountInfo,
+    server: &AccountInfo,
+    program_id: &Pubkey,
+    dweller_server_last: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let mut dweller_data = dweller.try_borrow_mut_data()?;
+    let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
+    let dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
+    if dweller_server_state.server == *server.key && dweller_server_state.container == *dweller.key
+    {
+        let dweller_server_key = create_index_with_seed(
+            program_id,
+            DwellerServer::SEED,
+            dweller.key,
+            dweller_server_state.index,
+        )?;
+
+        if dweller_server_key == *dweller_server.key {
+            crate::program::swap_last_to_default::<DwellerServer>(
+                dweller_server,
+                dweller_server_last,
+            )?;
+            dweller_state.servers = dweller_state.servers.error_decrement()?;
+
+            dweller_state.serialize_const(&mut dweller_data)?;
+            return Ok(());
+        }
+    }
+
+    Err(Error::Failed.into())
+}

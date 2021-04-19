@@ -1,7 +1,7 @@
 
 https://satellite.im/
 
-https://docs.google.com/spreadsheets/d/14y0c-EOnvXUBOXaYXNWnTjNQw0_MuOIvAy2FlAn5jPU/edit#gid=0
+https://docs.google.com/spreadsheets/d/1qqIx3lseGE2zCZFXXMAFwefW7BOBCGJurg7VUKk4yFE/edit#gid=152721817
 
 
 ### Build and test for program compiled natively
