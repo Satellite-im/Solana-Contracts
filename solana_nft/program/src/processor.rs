@@ -14,6 +14,9 @@ use solana_program::{
 /// Program state handler.
 pub struct Processor {}
 impl Processor {
+    /// Seed
+    pub const TOKEN_DATA_SEED: &'static str = "token_data";
+
     /// Initialize the mint
     pub fn process_initialize_mint(
         program_id: &Pubkey,
@@ -85,6 +88,16 @@ impl Processor {
             )
         {
             return Err(ProgramError::AccountNotRentExempt);
+        }
+
+        let generated_token_data_key = Pubkey::create_with_seed(
+            token_account.key,
+            Self::TOKEN_DATA_SEED,
+            program_id,
+        )?;
+
+        if generated_token_data_key != *token_data_account.key {
+            return Err(ProgramError::InvalidSeeds);
         }
 
         {
