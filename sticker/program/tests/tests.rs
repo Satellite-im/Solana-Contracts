@@ -217,6 +217,65 @@ pub async fn create_new_sticker(
     Ok(())
 }
 
+pub async fn buy_sticker(
+    program_context: &mut ProgramTestContext,
+    sticker_to_buy: &Pubkey,
+    artist_account: &Pubkey,
+    artist_token_acc: &Pubkey,
+    buyer_token_acc: &Pubkey,
+    buyer_transfer_authority: &Keypair,
+    mint_authority: &Pubkey,
+    nft_token: &Keypair,
+    nft_token_rent: u64,
+    nft_token_data_rent: u64,
+    nft_token_mint: &Pubkey,
+    nft_token_owner: &Pubkey,
+) -> Result<(), TransportError> {
+    let seed = "token_data";
+    let token_data =
+        Pubkey::create_with_seed(&nft_token.pubkey(), seed, &spl_nft_erc_721::id()).unwrap();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[system_instruction::create_account(
+            &program_context.payer.pubkey(),
+            &nft_token.pubkey(),
+            nft_token_rent,
+            spl_nft_erc_721::state::Token::LEN,
+            &spl_nft_erc_721::id(),
+        ),
+        system_instruction::create_account_with_seed(
+            &program_context.payer.pubkey(),
+            &token_data,
+            &nft_token.pubkey(),
+            seed,
+            nft_token_data_rent,
+            spl_nft_erc_721::state::TokenData::LEN,
+            &spl_nft_erc_721::id(),
+        ),
+        instruction::buy_sticker(
+            &id(),
+            sticker_to_buy,
+            artist_account,
+            artist_token_acc,
+            buyer_token_acc,
+            &buyer_transfer_authority.pubkey(),
+            mint_authority,
+            &nft_token.pubkey(),
+            &token_data,
+            nft_token_mint,
+            nft_token_owner,
+        )
+        .unwrap()],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer, buyer_transfer_authority, nft_token], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn test_create_account_instruction() {
     let mut program_context = program_test().start_with_context().await;
@@ -445,11 +504,18 @@ async fn test_create_new_sticker_instruction() {
     let nft_mint = Keypair::new();
 
     // create nft mint account
-    create_account(&mut program_context, &nft_mint, nft_mint_rent, spl_nft_erc_721::state::Mint::LEN, &spl_nft_erc_721::id()).await.unwrap();
+    create_account(
+        &mut program_context,
+        &nft_mint,
+        nft_mint_rent,
+        spl_nft_erc_721::state::Mint::LEN,
+        &spl_nft_erc_721::id(),
+    )
+    .await
+    .unwrap();
 
-    let (mint_auth, _) =
-            Pubkey::find_program_address(&[&sticker_key.to_bytes()[..32]], &id());
-    
+    let (mint_auth, _) = Pubkey::find_program_address(&[&sticker_key.to_bytes()[..32]], &id());
+
     let sticker_data = instruction::CreateNewSticker {
         max_supply: 1000,
         price: 100,
@@ -467,6 +533,195 @@ async fn test_create_new_sticker_instruction() {
         &artist_user,
         &mint_auth,
         sticker_data,
+    )
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn test_buy_sticker_instruction() {
+    let mut program_context = program_test().start_with_context().await;
+
+    let sticker_factory = Keypair::new();
+    let sticker_factory_owner = Keypair::new();
+
+    let rent = program_context.banks_client.get_rent().await.unwrap();
+    let sticker_factory_min_rent = rent.minimum_balance(state::StickerFactory::LEN);
+    let token_account_rent = rent.minimum_balance(spl_token::state::Account::LEN);
+    let nft_mint_rent = rent.minimum_balance(spl_nft_erc_721::state::Mint::LEN as usize);
+    let nft_token_acc_rent = rent.minimum_balance(spl_nft_erc_721::state::Token::LEN as usize);
+    let nft_token_data_acc_rent =
+        rent.minimum_balance(spl_nft_erc_721::state::TokenData::LEN as usize);
+
+    create_account(
+        &mut program_context,
+        &sticker_factory,
+        sticker_factory_min_rent,
+        state::StickerFactory::LEN as u64,
+        &id(),
+    )
+    .await
+    .unwrap();
+
+    create_sticker_factory(
+        &mut program_context,
+        &sticker_factory,
+        &sticker_factory_owner,
+    )
+    .await
+    .unwrap();
+
+    let factory_info_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let factory_info =
+        state::StickerFactory::try_from_slice(&factory_info_data.data.as_slice()).unwrap();
+
+    let (base, _) =
+        Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
+    let artist_key = Pubkey::create_with_seed(
+        &base,
+        &format!(
+            "{:?}{:?}",
+            factory_info.artist_count,
+            processor::Processor::ARTIST_SEED
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_program_account(
+        &mut program_context,
+        &sticker_factory.pubkey(),
+        &base,
+        &artist_key,
+        instruction::AddressType::Artist,
+    )
+    .await
+    .unwrap();
+
+    let artist_user = Keypair::new();
+    let artist_token_acc = Keypair::new();
+    let owner = Keypair::new();
+
+    create_token_account(
+        &mut program_context,
+        &artist_token_acc,
+        token_account_rent,
+        &spl_token::native_mint::id(),
+        &owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let artist_data = instruction::RegisterArtist {
+        name: [1; 32],
+        signature: [2; 256],
+        description: [3; 256],
+    };
+    register_new_artist(
+        &mut program_context,
+        &artist_user.pubkey(),
+        &artist_token_acc.pubkey(),
+        &artist_key,
+        &sticker_factory_owner,
+        &sticker_factory.pubkey(),
+        artist_data,
+    )
+    .await
+    .unwrap();
+
+    let (base, _) =
+        Pubkey::find_program_address(&[&sticker_factory.pubkey().to_bytes()[..32]], &id());
+    let sticker_key = Pubkey::create_with_seed(
+        &base,
+        &format!(
+            "{:?}{:?}",
+            factory_info.sticker_count,
+            processor::Processor::STICKER_SEED
+        ),
+        &id(),
+    )
+    .unwrap();
+    create_program_account(
+        &mut program_context,
+        &sticker_factory.pubkey(),
+        &base,
+        &sticker_key,
+        instruction::AddressType::Sticker,
+    )
+    .await
+    .unwrap();
+
+    let nft_mint = Keypair::new();
+
+    // create nft mint account
+    create_account(
+        &mut program_context,
+        &nft_mint,
+        nft_mint_rent,
+        spl_nft_erc_721::state::Mint::LEN,
+        &spl_nft_erc_721::id(),
+    )
+    .await
+    .unwrap();
+
+    let (mint_auth, _) = Pubkey::find_program_address(&[&sticker_key.to_bytes()[..32]], &id());
+
+    let sticker_price = 100;
+    let url = url::Url::parse("ipfs://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/Vincent_van_Gogh.html").unwrap();
+    let mut uri = [0;256];
+    let url_bytes = url.as_str().as_bytes();
+    let (left, _) = uri.split_at_mut(url_bytes.len());
+    left.copy_from_slice(url_bytes);
+
+    let sticker_data = instruction::CreateNewSticker {
+        max_supply: 1000,
+        price: sticker_price,
+        uri,
+        symbol: [7; 8],
+        name: [6; 32],
+    };
+
+    create_new_sticker(
+        &mut program_context,
+        &sticker_key,
+        &sticker_factory.pubkey(),
+        &nft_mint.pubkey(),
+        &artist_key,
+        &artist_user,
+        &mint_auth,
+        sticker_data,
+    )
+    .await
+    .unwrap();
+
+    let user_token_acc = Keypair::new();
+    let user_owner = Keypair::new();
+
+    create_token_account(
+        &mut program_context,
+        &user_token_acc,
+        token_account_rent+sticker_price,
+        &spl_token::native_mint::id(),
+        &user_owner.pubkey(),
+    )
+    .await
+    .unwrap();
+
+    let user_nft_token_acc = Keypair::new();
+    let user_nft_token_owner = Keypair::new();
+
+    buy_sticker(
+        &mut program_context,
+        &sticker_key,
+        &artist_key,
+        &artist_token_acc.pubkey(),
+        &user_token_acc.pubkey(),
+        &user_owner,
+        &mint_auth,
+        &user_nft_token_acc,
+        nft_token_acc_rent,
+        nft_token_data_acc_rent,
+        &nft_mint.pubkey(),
+        &user_nft_token_owner.pubkey(),
     )
     .await
     .unwrap();

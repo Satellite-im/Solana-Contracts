@@ -298,6 +298,7 @@ impl Processor {
 
         let mut sticker = Sticker::try_from_slice(&sticker_account_info.data.borrow())?;
         sticker.creator = artist.user;
+        sticker.supply = 0;
         sticker.max_supply = args.max_supply;
         sticker.price = args.price;
         sticker.mint = *mint_account_info.key;
@@ -358,6 +359,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let sticker_to_buy_account_info = next_account_info(account_info_iter)?;
+        let artist_account_info = next_account_info(account_info_iter)?;
         let artist_token_account_info = next_account_info(account_info_iter)?;
         let buyer_token_account_info = next_account_info(account_info_iter)?;
         let buyer_transfer_authority_account_info = next_account_info(account_info_iter)?;
@@ -368,13 +370,19 @@ impl Processor {
         let nft_token_owner_account_info = next_account_info(account_info_iter)?;
         let token_program_id = next_account_info(account_info_iter)?;
         let nft_token_program_id = next_account_info(account_info_iter)?;
+        let _rent_account_info = next_account_info(account_info_iter)?;
 
-        let sticker = Sticker::try_from_slice(&sticker_to_buy_account_info.data.borrow())?;
+        let mut sticker = Sticker::try_from_slice(&sticker_to_buy_account_info.data.borrow())?;
         if !sticker.is_initialized() {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        if *artist_token_account_info.key != sticker.creator {
+        let artist = Artist::try_from_slice(&artist_account_info.data.borrow())?;
+        if !artist.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        if sticker.creator != artist.user || *artist_token_account_info.key != artist.user_token_acc {
             return Err(StickerProgramError::WrongStickerCreator.into());
         }
 
@@ -386,7 +394,9 @@ impl Processor {
             return Err(StickerProgramError::WrongTokenMintAuthority.into());
         }
 
-        // TODO: add check max supply variable
+        if sticker.supply == sticker.max_supply {
+            return Err(StickerProgramError::NoTokensToMint.into());
+        }
 
         Self::transfer(
             token_program_id.clone(),
@@ -409,9 +419,14 @@ impl Processor {
             sticker.uri,
         )?;
 
-        // TODO: increment max supply variable
+        sticker.supply = sticker
+            .supply
+            .checked_add(1)
+            .ok_or::<ProgramError>(StickerProgramError::CalculationError.into())?;
 
-        Ok(())
+        sticker
+            .serialize(&mut *sticker_to_buy_account_info.data.borrow_mut())
+            .map_err(|e| e.into())
     }
 
     /// Change sticker price

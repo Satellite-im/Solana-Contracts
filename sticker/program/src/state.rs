@@ -33,6 +33,8 @@ pub struct Artist {
 pub struct Sticker {
     /// Creator
     pub creator: Pubkey,
+    /// Supply
+    pub supply: u64,
     /// Max supply
     pub max_supply: u64,
     /// Price
@@ -79,7 +81,7 @@ impl Artist {
 
 impl Sticker {
     /// LEN
-    pub const LEN: usize = 336;
+    pub const LEN: usize = 344;
 
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {

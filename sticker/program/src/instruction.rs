@@ -209,6 +209,7 @@ pub fn create_sticker_factory(
 pub fn buy_sticker(
     program_id: &Pubkey,
     sticker_to_buy: &Pubkey,
+    artist_account: &Pubkey,
     artist_token_acc: &Pubkey,
     buyer_token_acc: &Pubkey,
     buyer_transfer_authority: &Pubkey,
@@ -221,7 +222,8 @@ pub fn buy_sticker(
     let init_data = StickerInstruction::BuySticker;
     let data = init_data.try_to_vec()?;
     let accounts = vec![
-        AccountMeta::new_readonly(*sticker_to_buy, false),
+        AccountMeta::new(*sticker_to_buy, false),
+        AccountMeta::new_readonly(*artist_account, false),
         AccountMeta::new(*artist_token_acc, false),
         AccountMeta::new(*buyer_token_acc, false),
         AccountMeta::new_readonly(*buyer_transfer_authority, true),
@@ -232,6 +234,7 @@ pub fn buy_sticker(
         AccountMeta::new_readonly(*nft_token_owner, false),
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new_readonly(spl_nft_erc_721::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
     ];
     Ok(Instruction {
         program_id: *program_id,
