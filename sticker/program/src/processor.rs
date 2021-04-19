@@ -119,6 +119,7 @@ impl Processor {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_account<'a>(
         program_id: &Pubkey,
         funder: AccountInfo<'a>,
@@ -129,30 +130,22 @@ impl Processor {
         required_lamports: u64,
         space: u64,
         owner: &Pubkey,
-        index: u64
+        index: u64,
     ) -> ProgramResult {
-        let (program_base_address, bump_seed) = Pubkey::find_program_address(
-            &[&sticker_factory_account.to_bytes()[..32]],
-            program_id,
-        );
+        let (program_base_address, bump_seed) =
+            Pubkey::find_program_address(&[&sticker_factory_account.to_bytes()[..32]], program_id);
         if program_base_address != *base.key {
             return Err(ProgramError::InvalidSeeds);
         }
 
         let full_seed = format!("{:?}{:?}", index, seed);
 
-        let generated_address_to_create = Pubkey::create_with_seed(
-            &program_base_address,
-            &full_seed,
-            program_id,
-        )?;
+        let generated_address_to_create =
+            Pubkey::create_with_seed(&program_base_address, &full_seed, program_id)?;
         if generated_address_to_create != *account_to_create.key {
             return Err(ProgramError::InvalidSeeds);
         }
-        let signature = &[
-            &sticker_factory_account.to_bytes()[..32],
-            &[bump_seed],
-        ];
+        let signature = &[&sticker_factory_account.to_bytes()[..32], &[bump_seed]];
 
         invoke_signed(
             &system_instruction::create_account_with_seed(
@@ -236,7 +229,7 @@ impl Processor {
         sticker_factory.artist_count = sticker_factory
             .artist_count
             .checked_add(1)
-            .ok_or::<ProgramError>(StickerProgramError::CalculationError.into())?;
+            .ok_or_else(|| StickerProgramError::CalculationError)?;
 
         artist.serialize(&mut *artist_to_create_account_info.data.borrow_mut())?;
         sticker_factory
@@ -329,10 +322,10 @@ impl Processor {
         sticker.mint = *mint_account_info.key;
         sticker.uri = args.uri;
 
-        sticker_factory.artist_count = sticker_factory
+        sticker_factory.sticker_count = sticker_factory
             .sticker_count
             .checked_add(1)
-            .ok_or::<ProgramError>(StickerProgramError::CalculationError.into())?;
+            .ok_or_else(|| StickerProgramError::CalculationError)?;
 
         sticker_factory.serialize(&mut *sticker_factory_account_info.data.borrow_mut())?;
         sticker
@@ -407,7 +400,8 @@ impl Processor {
             return Err(ProgramError::UninitializedAccount);
         }
 
-        if sticker.creator != artist.user || *artist_token_account_info.key != artist.user_token_acc {
+        if sticker.creator != artist.user || *artist_token_account_info.key != artist.user_token_acc
+        {
             return Err(StickerProgramError::WrongStickerCreator.into());
         }
 
@@ -447,7 +441,7 @@ impl Processor {
         sticker.supply = sticker
             .supply
             .checked_add(1)
-            .ok_or::<ProgramError>(StickerProgramError::CalculationError.into())?;
+            .ok_or_else(|| StickerProgramError::CalculationError)?;
 
         sticker
             .serialize(&mut *sticker_to_buy_account_info.data.borrow_mut())
@@ -513,7 +507,7 @@ impl Processor {
                     rent.minimum_balance(Artist::LEN),
                     Artist::LEN as u64,
                     program_id,
-                    sticker_factory.artist_count
+                    sticker_factory.artist_count,
                 )?;
             }
             AddressType::Sticker => {
@@ -527,7 +521,7 @@ impl Processor {
                     rent.minimum_balance(Sticker::LEN),
                     Sticker::LEN as u64,
                     program_id,
-                    sticker_factory.sticker_count
+                    sticker_factory.sticker_count,
                 )?;
             }
         }

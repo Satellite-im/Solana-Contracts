@@ -230,50 +230,55 @@ pub async fn buy_sticker(
     nft_token_data_rent: u64,
     nft_token_mint: &Pubkey,
     nft_token_owner: &Pubkey,
-) -> Result<(), TransportError> {
+) -> Result<Pubkey, TransportError> {
     let seed = "token_data";
     let token_data =
         Pubkey::create_with_seed(&nft_token.pubkey(), seed, &spl_nft_erc_721::id()).unwrap();
 
     let mut transaction = Transaction::new_with_payer(
-        &[system_instruction::create_account(
-            &program_context.payer.pubkey(),
-            &nft_token.pubkey(),
-            nft_token_rent,
-            spl_nft_erc_721::state::Token::LEN,
-            &spl_nft_erc_721::id(),
-        ),
-        system_instruction::create_account_with_seed(
-            &program_context.payer.pubkey(),
-            &token_data,
-            &nft_token.pubkey(),
-            seed,
-            nft_token_data_rent,
-            spl_nft_erc_721::state::TokenData::LEN,
-            &spl_nft_erc_721::id(),
-        ),
-        instruction::buy_sticker(
-            &id(),
-            sticker_to_buy,
-            artist_account,
-            artist_token_acc,
-            buyer_token_acc,
-            &buyer_transfer_authority.pubkey(),
-            mint_authority,
-            &nft_token.pubkey(),
-            &token_data,
-            nft_token_mint,
-            nft_token_owner,
-        )
-        .unwrap()],
+        &[
+            system_instruction::create_account(
+                &program_context.payer.pubkey(),
+                &nft_token.pubkey(),
+                nft_token_rent,
+                spl_nft_erc_721::state::Token::LEN,
+                &spl_nft_erc_721::id(),
+            ),
+            system_instruction::create_account_with_seed(
+                &program_context.payer.pubkey(),
+                &token_data,
+                &nft_token.pubkey(),
+                seed,
+                nft_token_data_rent,
+                spl_nft_erc_721::state::TokenData::LEN,
+                &spl_nft_erc_721::id(),
+            ),
+            instruction::buy_sticker(
+                &id(),
+                sticker_to_buy,
+                artist_account,
+                artist_token_acc,
+                buyer_token_acc,
+                &buyer_transfer_authority.pubkey(),
+                mint_authority,
+                &nft_token.pubkey(),
+                &token_data,
+                nft_token_mint,
+                nft_token_owner,
+            )
+            .unwrap(),
+        ],
         Some(&program_context.payer.pubkey()),
     );
-    transaction.sign(&[&program_context.payer, buyer_transfer_authority, nft_token], program_context.last_blockhash);
+    transaction.sign(
+        &[&program_context.payer, buyer_transfer_authority, nft_token],
+        program_context.last_blockhash,
+    );
     program_context
         .banks_client
         .process_transaction(transaction)
         .await?;
-    Ok(())
+    Ok(token_data)
 }
 
 pub async fn change_sticker_price(
@@ -283,14 +288,16 @@ pub async fn change_sticker_price(
     new_price: u64,
 ) -> Result<(), TransportError> {
     let mut transaction = Transaction::new_with_payer(
-        &[instruction::change_sticker_price(
-            &id(),
-            sticker,
-            &creator.pubkey(),
-            new_price,
-        ).unwrap()],
-        Some(&program_context.payer.pubkey()));
-    transaction.sign(&[&program_context.payer, creator], program_context.last_blockhash);
+        &[
+            instruction::change_sticker_price(&id(), sticker, &creator.pubkey(), new_price)
+                .unwrap(),
+        ],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(
+        &[&program_context.payer, creator],
+        program_context.last_blockhash,
+    );
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -325,6 +332,12 @@ async fn test_create_account_instruction() {
     )
     .await
     .unwrap();
+
+    let sticker_factory_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let sticker_factory =
+        state::StickerFactory::try_from_slice(&sticker_factory_data.data.as_slice()).unwrap();
+
+    assert!(sticker_factory.is_initialized());
 }
 
 #[tokio::test]
@@ -401,6 +414,12 @@ async fn test_register_artist_instruction() {
         signature: [2; 256],
         description: [3; 256],
     };
+
+    let sticker_factory_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let sticker_factory_acc =
+        state::StickerFactory::try_from_slice(&sticker_factory_data.data.as_slice()).unwrap();
+    let artist_index_before = sticker_factory_acc.artist_count;
+
     register_new_artist(
         &mut program_context,
         &artist_user.pubkey(),
@@ -412,6 +431,18 @@ async fn test_register_artist_instruction() {
     )
     .await
     .unwrap();
+
+    let artist_acc_data = get_account(&mut program_context, &address_to_create).await;
+    let artist_acc = state::Artist::try_from_slice(&artist_acc_data.data.as_slice()).unwrap();
+
+    let sticker_factory_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let sticker_factory_acc =
+        state::StickerFactory::try_from_slice(&sticker_factory_data.data.as_slice()).unwrap();
+
+    assert!(artist_acc.is_initialized());
+    assert_eq!(artist_acc.user, artist_user.pubkey());
+    assert_eq!(artist_acc.user_token_acc, artist_token_acc.pubkey());
+    assert_eq!(sticker_factory_acc.artist_count, artist_index_before + 1);
 }
 
 #[tokio::test]
@@ -546,6 +577,11 @@ async fn test_create_new_sticker_instruction() {
         name: [6; 32],
     };
 
+    let sticker_factory_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let sticker_factory_acc =
+        state::StickerFactory::try_from_slice(&sticker_factory_data.data.as_slice()).unwrap();
+    let sticker_index_before = sticker_factory_acc.sticker_count;
+
     create_new_sticker(
         &mut program_context,
         &sticker_key,
@@ -554,10 +590,27 @@ async fn test_create_new_sticker_instruction() {
         &artist_key,
         &artist_user,
         &mint_auth,
-        sticker_data,
+        sticker_data.clone(),
     )
     .await
     .unwrap();
+
+    let sticker_acc_data = get_account(&mut program_context, &sticker_key).await;
+    let sticker_acc = state::Sticker::try_from_slice(&sticker_acc_data.data.as_slice()).unwrap();
+
+    assert!(sticker_acc.is_initialized());
+    assert_eq!(sticker_acc.creator, artist_user.pubkey());
+    assert_eq!(sticker_acc.supply, 0);
+    assert_eq!(sticker_acc.max_supply, sticker_data.max_supply);
+    assert_eq!(sticker_acc.price, sticker_data.price);
+    assert_eq!(sticker_acc.mint, nft_mint.pubkey());
+    assert_eq!(sticker_acc.uri, sticker_data.uri);
+
+    let sticker_factory_data = get_account(&mut program_context, &sticker_factory.pubkey()).await;
+    let sticker_factory_acc =
+        state::StickerFactory::try_from_slice(&sticker_factory_data.data.as_slice()).unwrap();
+
+    assert_eq!(sticker_factory_acc.sticker_count, sticker_index_before + 1);
 }
 
 #[tokio::test]
@@ -689,7 +742,7 @@ async fn test_buy_sticker_instruction() {
 
     let sticker_price = 100;
     let url = url::Url::parse("ipfs://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/Vincent_van_Gogh.html").unwrap();
-    let mut uri = [0;256];
+    let mut uri = [0; 256];
     let url_bytes = url.as_str().as_bytes();
     let (left, _) = uri.split_at_mut(url_bytes.len());
     left.copy_from_slice(url_bytes);
@@ -721,7 +774,7 @@ async fn test_buy_sticker_instruction() {
     create_token_account(
         &mut program_context,
         &user_token_acc,
-        token_account_rent+sticker_price,
+        token_account_rent + sticker_price,
         &spl_token::native_mint::id(),
         &user_owner.pubkey(),
     )
@@ -731,7 +784,19 @@ async fn test_buy_sticker_instruction() {
     let user_nft_token_acc = Keypair::new();
     let user_nft_token_owner = Keypair::new();
 
-    buy_sticker(
+    let user_token_account_data = get_account(&mut program_context, &user_token_acc.pubkey()).await;
+    let user_token_acc_balance_before = user_token_account_data.lamports;
+
+    let artist_token_account_data =
+        get_account(&mut program_context, &artist_token_acc.pubkey()).await;
+    let artist_token_acc_balance_before = artist_token_account_data.lamports;
+
+    let sticker_account_data = get_account(&mut program_context, &sticker_key).await;
+    let sticker_acc =
+        state::Sticker::try_from_slice(&sticker_account_data.data.as_slice()).unwrap();
+    let sticker_supply_before = sticker_acc.supply;
+
+    let token_data = buy_sticker(
         &mut program_context,
         &sticker_key,
         &artist_key,
@@ -747,6 +812,48 @@ async fn test_buy_sticker_instruction() {
     )
     .await
     .unwrap();
+
+    let user_nft_token_account_data =
+        get_account(&mut program_context, &user_nft_token_acc.pubkey()).await;
+    let user_nft_token_account = spl_nft_erc_721::state::Token::deserialize(
+        &mut &user_nft_token_account_data.data.as_slice()[..],
+    )
+    .unwrap();
+
+    assert_eq!(user_nft_token_account.mint, nft_mint.pubkey());
+    assert_eq!(user_nft_token_account.owner, user_nft_token_owner.pubkey());
+
+    let user_nft_token_data_account = get_account(&mut program_context, &token_data).await;
+    let user_nft_token_data_account = spl_nft_erc_721::state::TokenData::deserialize(
+        &mut &user_nft_token_data_account.data.as_slice()[..],
+    )
+    .unwrap();
+
+    assert_eq!(
+        user_nft_token_data_account.token,
+        user_nft_token_acc.pubkey()
+    );
+    assert_eq!(
+        url_bytes,
+        &user_nft_token_data_account.uri[0..url_bytes.len()]
+    );
+
+    let user_token_account_data = get_account(&mut program_context, &user_token_acc.pubkey()).await;
+    let artist_token_account_data =
+        get_account(&mut program_context, &artist_token_acc.pubkey()).await;
+    let sticker_account_data = get_account(&mut program_context, &sticker_key).await;
+    let sticker_acc =
+        state::Sticker::try_from_slice(&sticker_account_data.data.as_slice()).unwrap();
+
+    assert_eq!(
+        user_token_account_data.lamports,
+        user_token_acc_balance_before - sticker_price
+    );
+    assert_eq!(
+        artist_token_account_data.lamports,
+        artist_token_acc_balance_before + sticker_price
+    );
+    assert_eq!(sticker_acc.supply, sticker_supply_before + 1);
 }
 
 #[tokio::test]
@@ -875,7 +982,7 @@ async fn test_change_sticker_price_instruction() {
 
     let sticker_price = 100;
     let url = url::Url::parse("ipfs://bafybeiemxf5abjwjbikoz4mc3a3dla6ual3jsgpdr4cjr3oz3evfyavhwq/wiki/Vincent_van_Gogh.html").unwrap();
-    let mut uri = [0;256];
+    let mut uri = [0; 256];
     let url_bytes = url.as_str().as_bytes();
     let (left, _) = uri.split_at_mut(url_bytes.len());
     left.copy_from_slice(url_bytes);
@@ -901,5 +1008,15 @@ async fn test_change_sticker_price_instruction() {
     .await
     .unwrap();
 
-    change_sticker_price(&mut program_context, &sticker_key, &artist_user, 777).await.unwrap();
+    let new_price = 777;
+
+    change_sticker_price(&mut program_context, &sticker_key, &artist_user, new_price)
+        .await
+        .unwrap();
+
+    let sticker_account_data = get_account(&mut program_context, &sticker_key).await;
+    let sticker_acc =
+        state::Sticker::try_from_slice(&sticker_account_data.data.as_slice()).unwrap();
+
+    assert_eq!(sticker_acc.price, new_price);
 }

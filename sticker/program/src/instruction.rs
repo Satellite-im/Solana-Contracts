@@ -156,6 +156,7 @@ pub fn register_artist(
 }
 
 /// Create `CreateNewSticker` instruction
+#[allow(clippy::too_many_arguments)]
 pub fn create_new_sticker(
     program_id: &Pubkey,
     sticker: &Pubkey,
@@ -206,6 +207,7 @@ pub fn create_sticker_factory(
 }
 
 /// Create `BuySticker` instruction
+#[allow(clippy::too_many_arguments)]
 pub fn buy_sticker(
     program_id: &Pubkey,
     sticker_to_buy: &Pubkey,
