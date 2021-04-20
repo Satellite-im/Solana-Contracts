@@ -49,6 +49,9 @@ pub enum Error {
 
     #[error("Invalid derived address wrong server")]
     InvalidDerivedAddressWrongServer,
+
+    #[error("Invalid derived server member laast address")]
+    InvalidDerivedServerMemberLaastAddress,
 }
 
 impl From<Error> for ProgramError {

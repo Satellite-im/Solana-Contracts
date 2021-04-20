@@ -22,8 +22,8 @@ use crate::{
     test::{
         add_channel_to_group_transaction, add_channel_transaction, add_invite_transaction,
         create_group_transaction, delete_channel_transaction, delete_group_transaction,
-        join_server_transaction, leave_server_transaction, remove_channel_from_group_transaction,
-        revoke_invite_server_transaction,
+        join_server_transaction, leave_server_transaction, remove_admin_transaction,
+        remove_channel_from_group_transaction, revoke_invite_server_transaction,
     },
 };
 
@@ -107,7 +107,7 @@ async fn test_create_derived_dweller_account() {
 }
 
 #[tokio::test]
-async fn positive_add_flow() {
+async fn positive_add_remove_flow() {
     let mut blockchain = program_test().start_with_context().await;
     let rent = blockchain.banks_client.get_rent().await.unwrap();
 
@@ -304,6 +304,9 @@ async fn positive_add_flow() {
     assert_eq!(account_state.server, server.pubkey());
     assert_eq!(account_state.index, 0);
 
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.members, 2);
+
     // groups and channels
 
     let mut server_groups = Vec::new();
@@ -481,8 +484,8 @@ async fn positive_add_flow() {
     let trx = leave_server_transaction(
         &blockchain.payer,
         &server.pubkey(),
-        &server_members[0],
-        &server_members[0],
+        &server_members[1],
+        &server_members[1],
         &dweller_1,
         &dweller_servers[4],
         &dweller_servers[4],
@@ -494,6 +497,9 @@ async fn positive_add_flow() {
         .process_transaction(trx)
         .await
         .unwrap();
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.members, 1);
 
     let trx = revoke_invite_server_transaction(
         &blockchain.payer,
@@ -510,6 +516,27 @@ async fn positive_add_flow() {
         .process_transaction(trx)
         .await
         .unwrap();
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.member_statuses, 0);
+
+    let trx = remove_admin_transaction(
+        &blockchain.payer,
+        &dweller_owner,
+        &server.pubkey(),
+        &server_administrators[0],
+        &server_member_statuses[0],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.administrators, 0);
 }
 
 pub async fn create_derived_account_index(

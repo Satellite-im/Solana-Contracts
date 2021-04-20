@@ -258,3 +258,25 @@ pub fn revoke_invite_server_transaction(
     transaction.sign(&[payer, dweller_administrator], recent_blockhash);
     transaction
 }
+
+pub fn remove_admin_transaction(
+    payer: &Keypair,
+    owner: &Keypair,
+    server: &Pubkey,
+    server_administrator: &Pubkey,
+    server_administrator_last: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::remove_admin(
+            &owner.pubkey(),
+            server,
+            server_administrator,
+            server_administrator_last,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, owner], recent_blockhash);
+    transaction
+}

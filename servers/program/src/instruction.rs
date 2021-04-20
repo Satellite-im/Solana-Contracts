@@ -122,7 +122,7 @@ pub enum Instruction {
     AddAdmin,
 
     /// Accounts:
-    /// - signer             owner
+    /// - read, signer       owner
     /// - write              server
     /// - write, derived     server_administrator
     /// - write, derived     server_administrator_last
@@ -542,7 +542,7 @@ pub fn remove_admin(
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::RemoveAdmin.try_to_vec()?;
     let accounts = vec![
-        AccountMeta::new(*owner, true),
+        AccountMeta::new_readonly(*owner, true),
         AccountMeta::new(*server, false),
         AccountMeta::new(*server_administrator, false),
         AccountMeta::new(*server_administrator_last, false),

@@ -182,7 +182,9 @@ impl Processor {
                 server_member_state.version = StateVersion::V1;
                 server_member_state.container = *server.key;
                 server_member_state.dweller = *dweller_owner.key;
-                server_state.owner = *dweller_owner.key;
+                server_member_state.index = server_state.members;
+
+                server_member_state.serialize_const(&mut server_member_data)?;
 
                 let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
                 let mut dweller_server_state =
@@ -191,17 +193,17 @@ impl Processor {
                 dweller_server_state.version = StateVersion::V1;
                 dweller_server_state.server = *server.key;
                 dweller_server_state.container = *dweller_owner.key;
-
-                server_state.members = server_state.members.error_increment()?;
-
-                server_state.name = input.name;
+                dweller_server_state.index = dweller_state.servers;
+                dweller_server_state.serialize_const(&mut dweller_server_data)?;
 
                 dweller_state.servers = dweller_state.servers.error_increment()?;
-
                 dweller_state.serialize_const(&mut dweller_data)?;
+
+                server_state.version = StateVersion::V1;
+                server_state.owner = *dweller_owner.key;
+                server_state.members = server_state.members.error_increment()?;
+                server_state.name = input.name;
                 server_state.serialize_const(&mut server_data)?;
-                server_member_state.serialize_const(&mut server_member_data)?;
-                dweller_server_state.serialize_const(&mut dweller_server_data)?;
 
                 Ok(())
             } else {
@@ -327,10 +329,9 @@ impl Processor {
                     server_administrator_state.dweller = *dweller.key;
                     server_administrator_state.version = StateVersion::V1;
                     server_administrator_state.index = server_state.administrators;
+                    server_administrator_state.serialize_const(&mut server_administrator_data)?;
 
                     server_state.administrators = server_state.administrators.error_increment()?;
-
-                    server_administrator_state.serialize_const(&mut server_administrator_data)?;
                     server_state.serialize_const(&mut server_data)?;
 
                     Ok(())
@@ -349,25 +350,45 @@ impl Processor {
         _program_id: &Pubkey,
         owner: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
-        admin: &AccountInfo<'a>,
-        admin_last: &AccountInfo<'a>,
+        server_admin: &AccountInfo<'a>,
+        server_admin_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        let server_data = server.try_borrow_mut_data()?;
-        let mut server_state = Server::deserialize_const(&server_data)?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
         if server_state.owner == *owner.key && owner.is_signer {
-            let last_key = crate::program::create_index_with_seed(
+            let server_admin_state = server_admin.read_data_with_borsh::<ServerAdministrator>()?;
+            let server_admin_key = crate::program::create_index_with_seed(
                 &crate::id(),
                 ServerAdministrator::SEED,
                 server.key,
-                server_state.administrators,
+                server_admin_state.index,
             )?;
-            if last_key == *admin_last.key {
-                crate::program::swap_accounts::<ServerAdministrator>(admin, admin_last)?;
+
+            let server_admin_last_key = crate::program::create_index_with_seed(
+                &crate::id(),
+                ServerAdministrator::SEED,
+                server.key,
+                server_state.administrators.error_decrement()?,
+            )?;
+
+            if
+            //server_admin_last_key == *server_admin_last.key
+            //&&
+            server_admin_key == *server_admin.key {
+                crate::program::swap_accounts::<ServerAdministrator>(
+                    server_admin,
+                    server_admin_last,
+                )?;
+
                 server_state.administrators = server_state.administrators.error_decrement()?;
-                return Ok(());
+                server_state.serialize_const(&mut server_data)?;
+
+                Ok(())
+            } else {
+                Err(Error::InvalidDerivedServerAdministratorAddress.into())
             }
+        } else {
+            Err(ProgramError::MissingRequiredSignature)
         }
-        Err(ProgramError::MissingRequiredSignature)
     }
 
     fn revoke_invite_server<'a>(
@@ -387,12 +408,23 @@ impl Processor {
 
         let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
         let member_status_state = member_status.read_data_with_borsh::<ServerMemberStatus>()?;
-        let member_status_state_last =
-            member_status_last.read_data_with_borsh::<ServerMemberStatus>()?;
 
-        if member_status_state.container == *server.key
-            && member_status_state_last.container == *server.key
-            && member_status_state.index == server_state.member_statuses.error_decrement()?
+        let member_status_last_key = create_index_with_seed(
+            program_id,
+            ServerMemberStatus::SEED,
+            server.key,
+            server_state.member_statuses.error_decrement()?,
+        )?;
+
+        let member_status_key = create_index_with_seed(
+            program_id,
+            ServerMemberStatus::SEED,
+            server.key,
+            member_status_state.index,
+        )?;
+
+        if *member_status.key == member_status_key
+            && *member_status_last.key == member_status_last_key
         {
             crate::program::swap_accounts::<ServerMemberStatus>(member_status, member_status_last)?;
 
@@ -711,9 +743,13 @@ impl Processor {
             Instruction::RemoveAdmin => {
                 msg!("Instruction: RemoveAdmin");
                 match accounts {
-                    [owner, server, admin, admin_last, ..] => {
-                        Self::remove_admin(program_id, owner, server, admin, admin_last)
-                    }
+                    [owner, server, server_admin, server_admin_last, ..] => Self::remove_admin(
+                        program_id,
+                        owner,
+                        server,
+                        server_admin,
+                        server_admin_last,
+                    ),
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
             }
@@ -886,20 +922,31 @@ impl Processor {
             server_administrator,
         )?;
 
+        let (mut data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
+
         let server_group_state = server_group.read_data_with_borsh::<ServerGroup>()?;
-        let group_key = create_index_with_seed(
+        let server_group_key = create_index_with_seed(
             program_id,
             ServerGroup::SEED,
             server.key,
             server_group_state.index,
         )?;
-        if group_key == *server_group.key {
+
+        let server_group_last_key = create_index_with_seed(
+            program_id,
+            ServerGroup::SEED,
+            server.key,
+            server_state.groups.error_decrement()?,
+        )?;
+
+        if server_group_key == *server_group.key && server_group_last_key == *server_group_last.key
+        {
             for child in group_channels {
                 let child_state = server_group.read_data_with_borsh::<GroupChannel>()?;
                 let child_key = create_index_with_seed(
                     program_id,
                     GroupChannel::SEED,
-                    &group_key,
+                    &server_group_key,
                     child_state.index,
                 )?;
 
@@ -911,8 +958,6 @@ impl Processor {
             }
 
             swap_accounts::<ServerGroup>(server_group, server_group_last)?;
-
-            let (mut data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
             server_state.groups = server_state.groups.error_decrement()?;
             server_state.serialize_const(&mut data)?;
@@ -933,6 +978,7 @@ impl Processor {
     ) -> ProgramResult {
         require_admin(program_id, dweller, server, server_administrator)?;
 
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
         let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
 
         let server_channel_key = create_index_with_seed(
@@ -941,12 +987,21 @@ impl Processor {
             server.key,
             channel_state.index,
         )?;
-        if server_channel_key == *server_channel.key {
+
+        let server_channel_last_key = create_index_with_seed(
+            program_id,
+            ServerChannel::SEED,
+            server.key,
+            server_state.channels.error_decrement()?,
+        )?;
+
+        if server_channel_key == *server_channel.key
+            && server_channel_last_key == *server_channel_last.key
+        {
             swap_accounts::<ServerChannel>(server_channel, server_channel_last)?;
 
-            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
-            state.channels = state.channels.error_decrement()?;
-            state.serialize_const(&mut data)?;
+            server_state.channels = server_state.channels.error_decrement()?;
+            server_state.serialize_const(&mut server_data)?;
 
             Ok(())
         } else {
@@ -970,6 +1025,8 @@ impl Processor {
             server,
             server_administrator,
         )?;
+        let (mut group_data, mut group_state) =
+            server_group.read_data_with_borsh_mut::<ServerGroup>()?;
 
         let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
         let group_channel_key = create_index_with_seed(
@@ -978,11 +1035,19 @@ impl Processor {
             server_group.key,
             group_channel_data.index,
         )?;
-        if group_channel_key == *group_channel.key {
+
+        let group_channel_last_key = create_index_with_seed(
+            program_id,
+            GroupChannel::SEED,
+            server_group.key,
+            group_state.channels.error_decrement()?,
+        )?;
+
+        if group_channel_key == *group_channel.key
+            && group_channel_last_key == *group_channel_last.key
+        {
             swap_accounts::<GroupChannel>(group_channel, group_channel_last)?;
 
-            let (mut group_data, mut group_state) =
-                server_group.read_data_with_borsh_mut::<ServerGroup>()?;
             group_state.channels = group_state.channels.error_decrement()?;
             group_state.serialize_const(&mut group_data)?;
 
@@ -1067,7 +1132,7 @@ impl Processor {
             )?;
             Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature.into())
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 
@@ -1205,14 +1270,27 @@ fn remove_server_member<'a>(
     server_member: &AccountInfo<'a>,
     server_member_last: &AccountInfo<'a>,
 ) -> ProgramResult {
-    let server_member_state: ServerMember = server_member.read_data_with_borsh()?;
+    let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
 
-    if server_member_state.container == *server.key
-    //&& server_member_state.dweller == *dweller.key
+    let server_member_data: GroupChannel = server_member.read_data_with_borsh()?;
+    let server_member_key = create_index_with_seed(
+        program_id,
+        ServerMember::SEED,
+        server.key,
+        server_member_data.index,
+    )?;
+
+    let server_member_last_key = create_index_with_seed(
+        program_id,
+        ServerMember::SEED,
+        server.key,
+        server_state.members.error_decrement()?,
+    )?;
+
+    if server_member_last_key == *server_member_last.key && server_member_key == *server_member.key
     {
         crate::program::swap_accounts::<ServerMember>(server_member, server_member_last)?;
 
-        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
         server_state.members = server_state.members.error_decrement()?;
         server_state.serialize_const(&mut server_data)?;
 
@@ -1229,10 +1307,25 @@ fn remove_dweller_server<'a>(
     dweller_server: &AccountInfo<'a>,
     dweller_server_last: &AccountInfo<'a>,
 ) -> ProgramResult {
-    let mut dweller_data = dweller.try_borrow_mut_data()?;
-    let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
-    let dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
-    if dweller_server_state.server == *server.key && dweller_server_state.container == *dweller.key
+    let (mut dweller_data, mut dweller_state) = dweller.read_data_with_borsh_mut::<Dweller>()?;
+
+    let dweller_server_data: DwellerServer = dweller_server.read_data_with_borsh()?;
+    let dweller_server_key = create_index_with_seed(
+        program_id,
+        DwellerServer::SEED,
+        dweller.key,
+        dweller_server_data.index,
+    )?;
+
+    let dweller_server_last_key = create_index_with_seed(
+        program_id,
+        DwellerServer::SEED,
+        dweller.key,
+        dweller_state.servers.error_decrement()?,
+    )?;
+
+    if dweller_server_key == *dweller_server.key
+        && dweller_server_last_key == *dweller_server_last.key
     {
         crate::program::swap_accounts::<DwellerServer>(dweller_server, dweller_server_last)?;
 
