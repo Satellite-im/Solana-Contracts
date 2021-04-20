@@ -1,19 +1,20 @@
 //! Satellite servers
-//TODO: fix it #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 mod borsh;
 pub mod error;
+
+/// instruction
 pub mod instruction;
 mod math;
 mod prelude;
 pub mod processor;
-#[cfg(test)]
-mod processor_tests;
-mod program;
+
+pub mod program;
+/// state
 pub mod state;
 
-#[cfg(test)]
-mod test;
+pub mod sdk;
 
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;

@@ -1,4 +1,4 @@
-// //! Instruction types
+//! Instruction types
 
 use borsh::{BorshDeserialize, BorshSchema, BorshSerialize};
 use num_derive::ToPrimitive;
@@ -182,56 +182,78 @@ pub enum Instruction {
 /// Address type
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub enum AddressTypeInput {
+    /// type
     DwellerServer(u64),
+    /// type
     ServerMemberStatus(u64),
+    /// type
     ServerMember(u64),
+    /// type
     ServerAdministrator(u64),
+    /// type
     ServerChannel(u64),
+    /// type
     ServerGroup(u64),
+    /// type
     GroupChannel(u64),
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct CreateGroupInput {
+    /// name
     pub name: [u8; 32],
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct AddChannelInput {
+    /// type
     pub type_id: u8,
+    /// name
     pub name: [u8; 32],
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetNameInput {
+    /// name
     pub name: [u8; 32],
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetDwellerStatusInput {
+    /// status
     pub status: [u8; 32],
 }
 
+/// instruction data
 /// IPFS hash
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetHashInput {
+    /// IPFS
     pub hash: [u8; 64],
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct InitializeDwellerInput {
+    /// name
     pub name: [u8; 32],
 }
 
+/// instruction data
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct InitializeServerInput {
+    /// name
     pub name: [u8; 32],
 }
 

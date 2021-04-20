@@ -21,10 +21,10 @@ borsh = "0.8.2"
 
 strum = "0.20"
 strum_macros = "0.20"
+solana-sdk = "1.6.5"
 
 [dev-dependencies]
 solana-program-test = "1.6.5"
-solana-sdk = "1.6.5"
 async-trait = "0.1.48"
 
 [lib]

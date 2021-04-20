@@ -1,3 +1,5 @@
+//! In program helpers
+
 use std::mem;
 
 use borsh::BorshSerialize;
@@ -28,6 +30,7 @@ pub fn create_base_index_with_seed(
     ))
 }
 
+/// validation shortcut
 pub fn create_index_with_seed(
     program_id: &Pubkey,
     type_name: &str,
@@ -38,6 +41,7 @@ pub fn create_index_with_seed(
     Ok(create)
 }
 
+/// in program invoke to create program signed seeded account
 #[allow(clippy::too_many_arguments)]
 pub fn create_derived_account<'a>(
     payer: AccountInfo<'a>,
@@ -79,6 +83,7 @@ pub fn swap_accounts<'a, T: Default + BorshSerialize>(
     Ok(())
 }
 
+/// helper to create seeded index collection pattern
 #[allow(clippy::too_many_arguments)]
 pub fn create_seeded_rent_except_account<'a>(
     seed: &str,

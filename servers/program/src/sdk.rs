@@ -1,5 +1,4 @@
 //! Helpers for tests
-#![cfg(feature = "test-bpf")]
 
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{
@@ -8,9 +7,10 @@ use solana_sdk::{
 };
 
 use crate::instruction::{
-    self, delete_group, leave_server, remove_channel_from_group, AddChannelInput, CreateGroupInput,
+    self, AddChannelInput, CreateGroupInput, SetDwellerStatusInput, SetHashInput, SetNameInput,
 };
 
+/// assumes not program dweller
 pub fn add_invite_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -35,6 +35,7 @@ pub fn add_invite_transaction(
     transaction
 }
 
+/// assumes not program dweller
 pub fn join_server_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -59,6 +60,7 @@ pub fn join_server_transaction(
     transaction
 }
 
+/// assumes not program dweller
 pub fn create_group_transaction(
     payer: &Keypair,
     dweller_administrator: &Keypair,
@@ -83,6 +85,7 @@ pub fn create_group_transaction(
     transaction
 }
 
+/// assumes not program dweller
 pub fn add_channel_transaction(
     payer: &Keypair,
     dweller_administrator: &Keypair,
@@ -107,6 +110,8 @@ pub fn add_channel_transaction(
     transaction
 }
 
+/// assumes not program dweller
+#[allow(clippy::too_many_arguments)]
 pub fn add_channel_to_group_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -133,6 +138,8 @@ pub fn add_channel_to_group_transaction(
     transaction
 }
 
+/// assumes not program dweller
+#[allow(clippy::too_many_arguments)]
 pub fn remove_channel_from_group_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -159,6 +166,8 @@ pub fn remove_channel_from_group_transaction(
     transaction
 }
 
+/// assumes not program dweller
+#[allow(clippy::too_many_arguments)]
 pub fn delete_group_transaction(
     payer: &Keypair,
     dweller_administrator: &Keypair,
@@ -185,6 +194,8 @@ pub fn delete_group_transaction(
     transaction
 }
 
+/// assumes not program dweller
+#[allow(clippy::too_many_arguments)]
 pub fn delete_channel_transaction(
     payer: &Keypair,
     dweller_administrator: &Keypair,
@@ -209,6 +220,8 @@ pub fn delete_channel_transaction(
     transaction
 }
 
+/// assumes not program dweller
+#[allow(clippy::too_many_arguments)]
 pub fn leave_server_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -235,6 +248,7 @@ pub fn leave_server_transaction(
     transaction
 }
 
+/// assumes not program dweller
 pub fn revoke_invite_server_transaction(
     payer: &Keypair,
     server: &Pubkey,
@@ -259,6 +273,7 @@ pub fn revoke_invite_server_transaction(
     transaction
 }
 
+/// assumes not program dweller
 pub fn remove_admin_transaction(
     payer: &Keypair,
     owner: &Keypair,
@@ -278,5 +293,96 @@ pub fn remove_admin_transaction(
         Some(&payer.pubkey()),
     );
     transaction.sign(&[payer, owner], recent_blockhash);
+    transaction
+}
+
+/// assumes not program dweller
+pub fn set_dweller_name_transaction(
+    payer: &Keypair,
+    dweller: &Keypair,
+    input: &SetNameInput,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::set_dweller_name(&dweller.pubkey(), input).unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller], recent_blockhash);
+    transaction
+}
+
+/// assumes not program dweller
+pub fn set_dweller_photo_transaction(
+    payer: &Keypair,
+    dweller: &Keypair,
+    input: &SetHashInput,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::set_dweller_photo(&dweller.pubkey(), input).unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller], recent_blockhash);
+    transaction
+}
+
+/// assumes not program dweller
+pub fn set_dweller_status_transaction(
+    payer: &Keypair,
+    dweller: &Keypair,
+    input: &SetDwellerStatusInput,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::set_dweller_status(&dweller.pubkey(), input).unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller], recent_blockhash);
+    transaction
+}
+
+/// assumes not program dweller
+pub fn set_server_name_transaction(
+    payer: &Keypair,
+    server: &Pubkey,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    input: &SetNameInput,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::set_server_name(
+            server,
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            input,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
+    transaction
+}
+
+/// assumes not program dweller
+pub fn set_server_db_transaction(
+    payer: &Keypair,
+    server: &Pubkey,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    input: &SetHashInput,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::set_server_db(
+            server,
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            input,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
     transaction
 }

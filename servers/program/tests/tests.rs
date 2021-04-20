@@ -1,9 +1,7 @@
-#![cfg(feature = "test-bpf")]
-
-use std::ops::Range;
+//#![cfg(feature = "test-bpf")]
 
 use borsh::BorshDeserialize;
-use solana_program::{msg, pubkey::Pubkey, system_instruction};
+use solana_program::{pubkey::Pubkey, system_instruction};
 use solana_program_test::*;
 use solana_sdk::{
     account::Account,
@@ -12,19 +10,19 @@ use solana_sdk::{
     transport::TransportError,
 };
 
-use crate::{
+use satellite_servers::{
     id,
     instruction::{
         self, AddChannelInput, CreateGroupInput, InitializeDwellerInput, InitializeServerInput,
     },
     processor,
-    state::*,
-    test::{
+    sdk::{
         add_channel_to_group_transaction, add_channel_transaction, add_invite_transaction,
         create_group_transaction, delete_channel_transaction, delete_group_transaction,
         join_server_transaction, leave_server_transaction, remove_admin_transaction,
         remove_channel_from_group_transaction, revoke_invite_server_transaction,
     },
+    state::*,
 };
 
 pub fn program_test() -> ProgramTest {
@@ -63,7 +61,7 @@ pub async fn test_create_derived_account(
 }
 
 #[tokio::test]
-async fn test_create_derived_dweller_account() {
+async fn dweller_flow() {
     let mut program_context = program_test().start_with_context().await;
     let rent = program_context.banks_client.get_rent().await.unwrap();
 
@@ -80,7 +78,7 @@ async fn test_create_derived_dweller_account() {
 
     let index = 0;
     let (address_to_create, base_program_address, ..) =
-        crate::program::create_base_index_with_seed(
+        satellite_servers::program::create_base_index_with_seed(
             &id(),
             DwellerServer::SEED,
             &dweller.pubkey(),
@@ -140,7 +138,6 @@ async fn positive_add_remove_flow() {
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &dweller.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -155,21 +152,20 @@ async fn positive_add_remove_flow() {
         dweller_servers.push(address_to_create);
     }
 
-    let [dweller_owner, dweller_admin_1, dweller_admin_2, dweller_admin_3, dweller_1, dweller_2, dweller_3] =
+    let [dweller_owner, dweller_admin_1, _dweller_admin_2, _dweller_admin_3, dweller_1, _dweller_2, _dweller_3] =
         dwellers;
 
     // create server
     let server = Keypair::new();
 
     let mut server_members = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::ServerMember(index);
         let seed = ServerMember::SEED;
 
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -201,13 +197,12 @@ async fn positive_add_remove_flow() {
 
     // administrators and members
     let mut server_administrators = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::ServerAdministrator(index);
         let seed = ServerAdministrator::SEED;
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -225,7 +220,6 @@ async fn positive_add_remove_flow() {
         &dweller_admin_1.pubkey(),
         &server.pubkey(),
         &server_administrators[0],
-        rent,
         blockchain.last_blockhash,
         &mut blockchain.banks_client,
     )
@@ -238,13 +232,12 @@ async fn positive_add_remove_flow() {
     assert_eq!(account_state.container, server.pubkey());
 
     let mut server_member_statuses = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::ServerMemberStatus(index);
         let seed = ServerMemberStatus::SEED;
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -310,14 +303,13 @@ async fn positive_add_remove_flow() {
     // groups and channels
 
     let mut server_groups = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::ServerGroup(index);
         let seed = ServerGroup::SEED;
 
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -331,13 +323,12 @@ async fn positive_add_remove_flow() {
     }
 
     let mut group_channels = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::GroupChannel(index);
         let seed = GroupChannel::SEED;
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server_groups[0],
-            rent,
             seed,
             index,
             address_type,
@@ -350,13 +341,12 @@ async fn positive_add_remove_flow() {
     }
 
     let mut server_channels = Vec::new();
-    for index in (0u64..3) {
+    for index in 0u64..3 {
         let address_type = instruction::AddressTypeInput::ServerChannel(index);
         let seed = ServerChannel::SEED;
         let address_to_create = create_derived_account_index(
             &mut blockchain,
             &server.pubkey(),
-            rent,
             seed,
             index,
             address_type,
@@ -542,13 +532,12 @@ async fn positive_add_remove_flow() {
 pub async fn create_derived_account_index(
     blockchain: &mut ProgramTestContext,
     owner: &Pubkey,
-    rent: solana_program::rent::Rent,
     seed: &str,
     index: u64,
     address_type: instruction::AddressTypeInput,
 ) -> Pubkey {
     let (address_to_create, base_program_address, ..) =
-        crate::program::create_base_index_with_seed(&id(), seed, owner, index).unwrap();
+        satellite_servers::program::create_base_index_with_seed(&id(), seed, owner, index).unwrap();
     test_create_derived_account(
         blockchain,
         owner,
@@ -575,7 +564,7 @@ pub async fn test_initialize_dweller(
                 &dweller_owner.pubkey(),
                 rent.minimum_balance(Dweller::LEN as usize),
                 Dweller::LEN as u64,
-                &crate::id(),
+                &satellite_servers::id(),
             ),
             instruction::initialize_dweller(
                 &dweller_owner.pubkey(),
@@ -595,7 +584,6 @@ pub async fn test_add_administrator(
     dweller: &Pubkey,
     server: &Pubkey,
     server_administrator: &Pubkey,
-    rent: solana_program::rent::Rent,
     recent_blockhash: solana_program::hash::Hash,
     blockchain: &mut BanksClient,
 ) {
@@ -613,6 +601,7 @@ pub async fn test_add_administrator(
     blockchain.process_transaction(transaction).await.unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn test_initialize_server(
     payer: &Keypair,
     dweller_owner: &Keypair,
@@ -630,7 +619,7 @@ pub async fn test_initialize_server(
                 &server.pubkey(),
                 rent.minimum_balance(Server::LEN as usize),
                 Server::LEN as u64,
-                &crate::id(),
+                &satellite_servers::id(),
             ),
             instruction::initialize_server(
                 &dweller_owner.pubkey(),

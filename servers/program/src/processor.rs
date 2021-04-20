@@ -2,7 +2,7 @@
 
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
-    program_pack::IsInitialized, pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
+    pubkey::Pubkey, rent::Rent, system_program, sysvar::Sysvar,
 };
 
 use super::borsh::*;
@@ -1100,7 +1100,7 @@ impl Processor {
                 group_channel.read_data_with_borsh_mut::<GroupChannel>()?;
 
             if group_channel_state.version == StateVersion::Uninitialized {
-                group_channel_state.version == StateVersion::V1;
+                group_channel_state.version = StateVersion::V1;
                 group_channel_state.container = *server_group.key;
                 group_channel_state.index = server_group_state.channels;
                 group_channel_state.channel = *server_channel.key;
@@ -1128,20 +1128,8 @@ impl Processor {
         dweller_server_last: &AccountInfo<'a>,
     ) -> ProgramResult {
         if dweller.is_signer {
-            remove_dweller_server(
-                program_id,
-                server,
-                dweller,
-                dweller_server,
-                dweller_server_last,
-            )?;
-            remove_server_member(
-                program_id,
-                server,
-                dweller,
-                server_member,
-                server_member_last,
-            )?;
+            remove_dweller_server(program_id, dweller, dweller_server, dweller_server_last)?;
+            remove_server_member(program_id, server, server_member, server_member_last)?;
             Ok(())
         } else {
             Err(ProgramError::MissingRequiredSignature)
@@ -1215,19 +1203,19 @@ impl Processor {
                                 Err(ProgramError::AccountAlreadyInitialized)
                             }
                         } else {
-                            return Err(Error::InvalidDerivedServerMemberAddress.into());
+                            Err(Error::InvalidDerivedServerMemberAddress.into())
                         }
                     } else {
-                        return Err(Error::InvalidDerivedServerMemberStatusAddress.into());
+                        Err(Error::InvalidDerivedServerMemberStatusAddress.into())
                     }
                 } else {
-                    return Err(ProgramError::AccountAlreadyInitialized);
+                    Err(ProgramError::AccountAlreadyInitialized)
                 }
             } else {
-                return Err(Error::InvalidDerivedDwellerServerAddress.into());
+                Err(Error::InvalidDerivedDwellerServerAddress.into())
             }
         } else {
-            return Err(ProgramError::MissingRequiredSignature);
+            Err(ProgramError::MissingRequiredSignature)
         }
     }
 }
@@ -1261,24 +1249,21 @@ fn require_admin(
 
         if server_administrator_state.container == *server.key {
             if server_administrator_state.dweller == *dweller_administrator.key {
-                return Ok(());
+                Ok(())
             } else {
-                return Err(Error::InvalidDerivedServerAdministratorAddress.into());
+                Err(Error::InvalidDerivedServerAdministratorAddress.into())
             }
         } else {
-            return Err(Error::InvalidDerivedAddressWrongServer.into());
+            Err(Error::InvalidDerivedAddressWrongServer.into())
         }
     } else {
-        return Err(ProgramError::MissingRequiredSignature);
+        Err(ProgramError::MissingRequiredSignature)
     }
-
-    Ok(())
 }
 
 fn remove_server_member<'a>(
     program_id: &Pubkey,
     server: &AccountInfo<'a>,
-    dweller: &AccountInfo<'a>,
     server_member: &AccountInfo<'a>,
     server_member_last: &AccountInfo<'a>,
 ) -> ProgramResult {
@@ -1314,7 +1299,6 @@ fn remove_server_member<'a>(
 
 fn remove_dweller_server<'a>(
     program_id: &Pubkey,
-    server: &AccountInfo<'a>,
     dweller: &AccountInfo<'a>,
     dweller_server: &AccountInfo<'a>,
     dweller_server_last: &AccountInfo<'a>,
