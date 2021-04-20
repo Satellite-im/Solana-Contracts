@@ -8,7 +8,7 @@ use solana_sdk::{
 };
 
 use crate::instruction::{
-    self, delete_group, remove_channel_from_group, AddChannelInput, CreateGroupInput,
+    self, delete_group, leave_server, remove_channel_from_group, AddChannelInput, CreateGroupInput,
 };
 
 pub fn add_invite_transaction(
@@ -201,6 +201,56 @@ pub fn delete_channel_transaction(
             server,
             server_channel,
             server_channel_last,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
+    transaction
+}
+
+pub fn leave_server_transaction(
+    payer: &Keypair,
+    server: &Pubkey,
+    server_member: &Pubkey,
+    server_member_last: &Pubkey,
+    dweller: &Keypair,
+    dweller_server: &Pubkey,
+    dweller_server_last: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::leave_server(
+            server,
+            server_member,
+            server_member_last,
+            &dweller.pubkey(),
+            dweller_server,
+            dweller_server_last,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller], recent_blockhash);
+    transaction
+}
+
+pub fn revoke_invite_server_transaction(
+    payer: &Keypair,
+    server: &Pubkey,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    server_member_status: &Pubkey,
+    server_member_status_last: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::revoke_invite_server(
+            server,
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            server_member_status,
+            server_member_status_last,
         )
         .unwrap()],
         Some(&payer.pubkey()),

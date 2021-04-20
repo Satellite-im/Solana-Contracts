@@ -371,22 +371,37 @@ impl Processor {
     }
 
     fn revoke_invite_server<'a>(
-        _program_id: &Pubkey,
-        _admin: &AccountInfo<'a>,
+        program_id: &Pubkey,
         server: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
         member_status: &AccountInfo<'a>,
         member_status_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        // TODO: validate admin is admin of the server and signer
-        // TODO: validate derived addresses are correct (read to get index etc)
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
-        let server_data = server.try_borrow_mut_data()?;
-        let mut server_state = Server::deserialize_const(&server_data)?;
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
+        let member_status_state = member_status.read_data_with_borsh::<ServerMemberStatus>()?;
+        let member_status_state_last =
+            member_status_last.read_data_with_borsh::<ServerMemberStatus>()?;
 
-        crate::program::swap_accounts::<ServerMemberStatus>(member_status, member_status_last)?;
-        server_state.member_statuses = server_state.member_statuses.error_decrement()?;
+        if member_status_state.container == *server.key
+            && member_status_state_last.container == *server.key
+            && member_status_state.index == server_state.member_statuses.error_decrement()?
+        {
+            crate::program::swap_accounts::<ServerMemberStatus>(member_status, member_status_last)?;
 
-        Ok(())
+            server_state.member_statuses = server_state.member_statuses.error_decrement()?;
+            server_state.serialize_const(&mut server_data)?;
+            Ok(())
+        } else {
+            Err(Error::InvalidDerivedServerMemberStatusAddress.into())
+        }
     }
 
     fn invite_to_server<'a>(
@@ -706,11 +721,12 @@ impl Processor {
             Instruction::RevokeInviteServer => {
                 msg!("Instruction: RevokeInviteServer");
                 match accounts {
-                    [admin, server, member_status, member_status_last, ..] => {
+                    [server, dweller_administrator, server_administrator, member_status, member_status_last, ..] => {
                         Self::revoke_invite_server(
                             program_id,
-                            admin,
                             server,
+                            dweller_administrator,
+                            server_administrator,
                             member_status,
                             member_status_last,
                         )
@@ -919,23 +935,23 @@ impl Processor {
 
         let channel_state = server_channel.read_data_with_borsh::<ServerChannel>()?;
 
-        let channel_key = create_index_with_seed(
+        let server_channel_key = create_index_with_seed(
             program_id,
             ServerChannel::SEED,
             server.key,
             channel_state.index,
         )?;
-        if channel_key == *server_channel.key {
+        if server_channel_key == *server_channel.key {
             swap_accounts::<ServerChannel>(server_channel, server_channel_last)?;
 
             let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
             state.channels = state.channels.error_decrement()?;
             state.serialize_const(&mut data)?;
 
-            return Ok(());
+            Ok(())
+        } else {
+            Err(Error::InvalidDerivedServerChannelAddress.into())
         }
-
-        Err(Error::Failed.into())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1037,22 +1053,22 @@ impl Processor {
         if dweller.is_signer {
             remove_dweller_server(
                 program_id,
+                server,
                 dweller,
                 dweller_server,
-                server,
                 dweller_server_last,
             )?;
             remove_server_member(
                 program_id,
                 server,
-                server_member,
                 dweller,
+                server_member,
                 server_member_last,
             )?;
-            return Ok(());
+            Ok(())
+        } else {
+            Err(ProgramError::MissingRequiredSignature.into())
         }
-
-        Err(Error::Failed.into())
     }
 
     fn join_server<'a>(
@@ -1075,9 +1091,8 @@ impl Processor {
             )?;
 
             if dweller_server_key == *dweller_server.key {
-                let mut dweller_server_data = dweller_server.try_borrow_mut_data()?;
-                let mut dweller_server_state =
-                    DwellerServer::deserialize_const(&dweller_server_data)?;
+                let (mut dweller_server_data, mut dweller_server_state) =
+                    dweller_server.read_data_with_borsh_mut::<DwellerServer>()?;
 
                 if dweller_server_state.version == StateVersion::Uninitialized {
                     let server_member_status_state: ServerMemberStatus =
@@ -1104,23 +1119,23 @@ impl Processor {
                                 server_member_state.container = *server.key;
                                 server_member_state.index = server_state.members;
                                 server_member_state.dweller = *dweller.key;
+                                server_member_state.serialize_const(&mut server_member_data)?;
 
                                 dweller_server_state.container = *dweller.key;
                                 dweller_server_state.index = dweller_state.servers;
                                 dweller_server_state.version = StateVersion::V1;
+                                dweller_server_state.server = *server.key;
+                                dweller_server_state.serialize_const(&mut dweller_server_data)?;
 
                                 dweller_state.servers = dweller_state.servers.error_increment()?;
-
-                                server_state.members = server_state.members.error_decrement()?;
-
-                                server_state.serialize_const(&mut server_data)?;
-                                server_member_state.serialize_const(&mut server_member_data)?;
-                                dweller_server_state.serialize_const(&mut dweller_server_data)?;
                                 dweller_state.serialize_const(&mut dweller_data)?;
 
-                                return Ok(());
+                                server_state.members = server_state.members.error_increment()?;
+                                server_state.serialize_const(&mut server_data)?;
+
+                                Ok(())
                             } else {
-                                return Err(ProgramError::AccountAlreadyInitialized);
+                                Err(ProgramError::AccountAlreadyInitialized)
                             }
                         } else {
                             return Err(Error::InvalidDerivedServerMemberAddress.into());
@@ -1186,60 +1201,46 @@ fn require_admin(
 fn remove_server_member<'a>(
     program_id: &Pubkey,
     server: &AccountInfo<'a>,
-    server_member: &AccountInfo<'a>,
     dweller: &AccountInfo<'a>,
+    server_member: &AccountInfo<'a>,
     server_member_last: &AccountInfo<'a>,
-) -> Result<(), ProgramError> {
-    let mut server_data = server.try_borrow_mut_data()?;
-    let mut server_state = Server::deserialize_const(&server_data)?;
+) -> ProgramResult {
     let server_member_state: ServerMember = server_member.read_data_with_borsh()?;
-    if server_member_state.container == *server.key && server_member_state.dweller == *dweller.key {
-        let server_member_key = create_index_with_seed(
-            program_id,
-            DwellerServer::SEED,
-            server.key,
-            server_member_state.index,
-        )?;
 
-        if server_member_key == *server_member.key {
-            crate::program::swap_accounts::<ServerMember>(server_member, server_member_last)?;
-            server_state.members = server_state.members.error_decrement()?;
-            server_state.serialize_const(&mut server_data)?;
-            return Ok(());
-        }
+    if server_member_state.container == *server.key
+    //&& server_member_state.dweller == *dweller.key
+    {
+        crate::program::swap_accounts::<ServerMember>(server_member, server_member_last)?;
+
+        let (mut server_data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
+        server_state.members = server_state.members.error_decrement()?;
+        server_state.serialize_const(&mut server_data)?;
+
+        Ok(())
+    } else {
+        Err(Error::InvalidDerivedServerMemberAddress.into())
     }
-
-    Err(Error::Failed.into())
 }
 
 fn remove_dweller_server<'a>(
     program_id: &Pubkey,
+    server: &AccountInfo<'a>,
     dweller: &AccountInfo<'a>,
     dweller_server: &AccountInfo<'a>,
-    server: &AccountInfo<'a>,
     dweller_server_last: &AccountInfo<'a>,
-) -> Result<(), ProgramError> {
+) -> ProgramResult {
     let mut dweller_data = dweller.try_borrow_mut_data()?;
     let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
     let dweller_server_state: DwellerServer = dweller_server.read_data_with_borsh()?;
     if dweller_server_state.server == *server.key && dweller_server_state.container == *dweller.key
     {
-        let dweller_server_key = create_index_with_seed(
-            program_id,
-            DwellerServer::SEED,
-            dweller.key,
-            dweller_server_state.index,
-        )?;
+        crate::program::swap_accounts::<DwellerServer>(dweller_server, dweller_server_last)?;
 
-        if dweller_server_key == *dweller_server.key {
-            crate::program::swap_accounts::<DwellerServer>(dweller_server, dweller_server_last)?;
+        dweller_state.servers = dweller_state.servers.error_decrement()?;
+        dweller_state.serialize_const(&mut dweller_data)?;
 
-            dweller_state.servers = dweller_state.servers.error_decrement()?;
-            dweller_state.serialize_const(&mut dweller_data)?;
-
-            return Ok(());
-        }
+        Ok(())
+    } else {
+        Err(Error::InvalidDerivedDwellerServerAddress.into())
     }
-
-    Err(Error::Failed.into())
 }

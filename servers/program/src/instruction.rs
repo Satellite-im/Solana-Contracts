@@ -158,8 +158,8 @@ pub enum Instruction {
     /// - write              server
     /// - read, signer       dweller_administrator
     /// - read, derived      server_administrator
-    /// - write, derived     member_status
-    /// - write, derived     member_status_last
+    /// - write, derived     server_member_status
+    /// - write, derived     server_member_status_last
     RevokeInviteServer,
 
     /// Accounts:
@@ -634,16 +634,16 @@ pub fn revoke_invite_server(
     server: &Pubkey,
     dweller_administrator: &Pubkey,
     server_administrator: &Pubkey,
-    member_status: &Pubkey,
-    member_status_last: &Pubkey,
+    server_member_status: &Pubkey,
+    server_member_status_last: &Pubkey,
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::RevokeInviteServer.try_to_vec()?;
     let accounts = vec![
         AccountMeta::new(*server, false),
-        AccountMeta::new(*dweller_administrator, true),
+        AccountMeta::new_readonly(*dweller_administrator, true),
         AccountMeta::new_readonly(*server_administrator, false),
-        AccountMeta::new(*member_status, false),
-        AccountMeta::new(*member_status_last, false),
+        AccountMeta::new(*server_member_status, false),
+        AccountMeta::new(*server_member_status_last, false),
     ];
 
     Ok(solana_program::instruction::Instruction {

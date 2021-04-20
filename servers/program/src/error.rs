@@ -17,6 +17,9 @@ pub enum Error {
     #[error("Overflow")]
     Overflow,
 
+    #[error("Underflow")]
+    Underflow,
+
     #[error("Invalid derived address")]
     InvalidDerivedAddress,
 

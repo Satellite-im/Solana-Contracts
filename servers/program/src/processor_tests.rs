@@ -22,7 +22,8 @@ use crate::{
     test::{
         add_channel_to_group_transaction, add_channel_transaction, add_invite_transaction,
         create_group_transaction, delete_channel_transaction, delete_group_transaction,
-        join_server_transaction, remove_channel_from_group_transaction,
+        join_server_transaction, leave_server_transaction, remove_channel_from_group_transaction,
+        revoke_invite_server_transaction,
     },
 };
 
@@ -298,6 +299,11 @@ async fn positive_add_flow() {
     assert_eq!(account_state.index, 1);
     assert_eq!(account_state.dweller, dweller_1.pubkey());
 
+    let account_state: DwellerServer = get_account_data(&mut blockchain, &dweller_servers[4]).await;
+    assert_eq!(account_state.container, dweller_1.pubkey());
+    assert_eq!(account_state.server, server.pubkey());
+    assert_eq!(account_state.index, 0);
+
     // groups and channels
 
     let mut server_groups = Vec::new();
@@ -471,6 +477,39 @@ async fn positive_add_flow() {
     assert_eq!(account_state.channels, 0);
 
     // members/admin
+
+    let trx = leave_server_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &server_members[0],
+        &server_members[0],
+        &dweller_1,
+        &dweller_servers[4],
+        &dweller_servers[4],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let trx = revoke_invite_server_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server_member_statuses[0],
+        &server_member_statuses[0],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
 }
 
 pub async fn create_derived_account_index(
