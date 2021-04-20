@@ -525,7 +525,7 @@ async fn positive_add_remove_flow() {
         &dweller_owner,
         &server.pubkey(),
         &server_administrators[0],
-        &server_member_statuses[0],
+        &server_administrators[0],
         blockchain.last_blockhash,
     );
 

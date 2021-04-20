@@ -46,7 +46,6 @@ impl Processor {
             let mut data = dweller.try_borrow_mut_data()?;
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
-                state.version = StateVersion::V1;
                 state.name = input.name;
                 state.serialize_const(&mut data)?;
                 Ok(())
@@ -67,7 +66,6 @@ impl Processor {
             let mut data = dweller.try_borrow_mut_data()?;
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
-                state.version = StateVersion::V1;
                 state.photo_hash = input.hash;
                 state.serialize_const(&mut data)?;
                 Ok(())
@@ -80,46 +78,50 @@ impl Processor {
     }
 
     fn set_server_name<'a>(
-        _program_id: &Pubkey,
-        admin: &AccountInfo<'a>,
+        program_id: &Pubkey,
+        dweller_administrator: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         input: &SetNameInput,
     ) -> ProgramResult {
-        if admin.is_signer {
-            let mut data = server.try_borrow_mut_data()?;
-            let mut state = Server::deserialize_const(&data)?;
-            if state.version == StateVersion::V1 {
-                state.version = StateVersion::V1;
-                state.name = input.name;
-                state.serialize_const(&mut data)?;
-                Ok(())
-            } else {
-                Err(ProgramError::UninitializedAccount)
-            }
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
+        let mut data = server.try_borrow_mut_data()?;
+        let mut state = Server::deserialize_const(&data)?;
+        if state.version == StateVersion::V1 {
+            state.name = input.name;
+            state.serialize_const(&mut data)?;
+            Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature)
+            Err(ProgramError::UninitializedAccount)
         }
     }
 
     fn set_server_db<'a>(
-        _program_id: &Pubkey,
-        admin: &AccountInfo<'a>,
+        program_id: &Pubkey,
+        dweller_administrator: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         input: &SetHashInput,
     ) -> ProgramResult {
-        if admin.is_signer {
-            let mut data = server.try_borrow_mut_data()?;
-            let mut state = Server::deserialize_const(&data)?;
-            if state.version == StateVersion::V1 {
-                state.version = StateVersion::V1;
-                state.db_hash = input.hash;
-                state.serialize_const(&mut data)?;
-                Ok(())
-            } else {
-                Err(ProgramError::UninitializedAccount)
-            }
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
+        let mut data = server.try_borrow_mut_data()?;
+        let mut state = Server::deserialize_const(&data)?;
+        if state.version == StateVersion::V1 {
+            state.db_hash = input.hash;
+            state.serialize_const(&mut data)?;
+            Ok(())
         } else {
-            Err(ProgramError::MissingRequiredSignature)
+            Err(ProgramError::UninitializedAccount)
         }
     }
 
@@ -132,7 +134,6 @@ impl Processor {
             let mut data = dweller.try_borrow_mut_data()?;
             let mut state = Dweller::deserialize_const(&data)?;
             if state.version == StateVersion::V1 {
-                state.version = StateVersion::V1;
                 state.status = input.status;
                 state.serialize_const(&mut data)?;
                 Ok(())
@@ -370,10 +371,9 @@ impl Processor {
                 server_state.administrators.error_decrement()?,
             )?;
 
-            if
-            //server_admin_last_key == *server_admin_last.key
-            //&&
-            server_admin_key == *server_admin.key {
+            if server_admin_last_key == *server_admin_last.key
+                && server_admin_key == *server_admin.key
+            {
                 crate::program::swap_accounts::<ServerAdministrator>(
                     server_admin,
                     server_admin_last,
@@ -774,11 +774,17 @@ impl Processor {
             Instruction::SetServerName => {
                 msg!("Instruction: SetServerName");
                 match accounts {
-                    [admin, server, ..] => {
+                    [dweller_administrator, server_administrator, server, ..] => {
                         let input =
                             super::instruction::SetNameInput::deserialize_const(&input[1..])?;
 
-                        Self::set_server_name(program_id, admin, server, &input)
+                        Self::set_server_name(
+                            program_id,
+                            dweller_administrator,
+                            server_administrator,
+                            server,
+                            &input,
+                        )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }
@@ -786,11 +792,17 @@ impl Processor {
             Instruction::SetServerDb => {
                 msg!("Instruction: SetServerDb");
                 match accounts {
-                    [admin, server, ..] => {
+                    [dweller_administrator, server_administrator, server, ..] => {
                         let input =
                             super::instruction::SetHashInput::deserialize_const(&input[1..])?;
 
-                        Self::set_server_db(program_id, admin, server, &input)
+                        Self::set_server_db(
+                            program_id,
+                            dweller_administrator,
+                            server_administrator,
+                            server,
+                            &input,
+                        )
                     }
                     _ => Err(ProgramError::NotEnoughAccountKeys),
                 }

@@ -163,17 +163,17 @@ pub enum Instruction {
     RevokeInviteServer,
 
     /// Accounts:
-    /// - write              server
-    /// - signer             dweller_administrator
+    /// - read, signer       dweller_administrator
     /// - read, derived      server_administrator
+    /// - write              server
     ///
     /// Input: [SetNameInput]
     SetServerName,
 
     /// Accounts:
-    /// - write              server
-    /// - signer             dweller_administrator
+    /// - read, signer       dweller_administrator
     /// - read, derived      server_administrator
+    /// - write              server
     ///
     /// Input: [SetHashInput]        
     SetServerDb,
