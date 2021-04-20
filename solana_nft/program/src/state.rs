@@ -85,7 +85,11 @@ mod tests {
 
     #[test]
     fn pack_unpack_mint() {
-        let data = Mint::new([1; super::SYMBOL_LEN], [2; super::NAME_LEN], Pubkey::default());
+        let data = Mint::new(
+            [1; super::SYMBOL_LEN],
+            [2; super::NAME_LEN],
+            Pubkey::default(),
+        );
         let packed = data.try_to_vec().unwrap();
         assert_eq!(Mint::LEN, packed.len() as u64);
         let unpack = Mint::deserialize(&mut &packed[..]).unwrap();

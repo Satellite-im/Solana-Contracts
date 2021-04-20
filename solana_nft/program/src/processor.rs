@@ -90,11 +90,8 @@ impl Processor {
             return Err(ProgramError::AccountNotRentExempt);
         }
 
-        let generated_token_data_key = Pubkey::create_with_seed(
-            token_account.key,
-            Self::TOKEN_DATA_SEED,
-            program_id,
-        )?;
+        let generated_token_data_key =
+            Pubkey::create_with_seed(token_account.key, Self::TOKEN_DATA_SEED, program_id)?;
 
         if generated_token_data_key != *token_data_account.key {
             return Err(ProgramError::InvalidSeeds);

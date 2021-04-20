@@ -64,14 +64,15 @@ pub fn create_derived_account<'a>(
     )
 }
 
-/// swaps provided member with last, erases last
-pub fn swap_last_to_default<T: Default + BorshSerialize>(
-    current: &AccountInfo,
-    last: &AccountInfo,
+/// swaps two accounts data
+/// panics if accounts are borrowedy
+pub fn swap_accounts<'a, T: Default + BorshSerialize>(
+    current: &AccountInfo<'a>,
+    last: &AccountInfo<'a>,
 ) -> Result<(), ProgramError> {
-    let mut current_data = last.data.borrow_mut();
-    let mut last_data = last.data.borrow_mut();
+    let mut last_data = last.data.try_borrow_mut().unwrap();
     if current.key != last.key {
+        let mut current_data = current.data.try_borrow_mut().unwrap();
         mem::swap(&mut *current_data, &mut *last_data);
     }
     T::default().serialize(&mut *last_data)?;

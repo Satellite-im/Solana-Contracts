@@ -11,7 +11,7 @@ use crate::{
     borsh::{AccountWithBorsh, BorshSerializeConst},
     error::Error,
     instruction::*,
-    program::{create_index_with_seed, create_seeded_rent_except_account, swap_last_to_default},
+    program::{create_index_with_seed, create_seeded_rent_except_account, swap_accounts},
     state::*,
 };
 
@@ -362,7 +362,7 @@ impl Processor {
                 server_state.administrators,
             )?;
             if last_key == *admin_last.key {
-                crate::program::swap_last_to_default::<ServerAdministrator>(admin, admin_last)?;
+                crate::program::swap_accounts::<ServerAdministrator>(admin, admin_last)?;
                 server_state.administrators = server_state.administrators.error_decrement()?;
                 return Ok(());
             }
@@ -383,10 +383,7 @@ impl Processor {
         let server_data = server.try_borrow_mut_data()?;
         let mut server_state = Server::deserialize_const(&server_data)?;
 
-        crate::program::swap_last_to_default::<ServerMemberStatus>(
-            member_status,
-            member_status_last,
-        )?;
+        crate::program::swap_accounts::<ServerMemberStatus>(member_status, member_status_last)?;
         server_state.member_statuses = server_state.member_statuses.error_decrement()?;
 
         Ok(())
@@ -802,14 +799,13 @@ impl Processor {
             Instruction::RemoveChannelFromGroup => {
                 msg!("Instruction: RemoveChannelFromGroup");
                 match accounts {
-                    [server, dweller, server_admin, channel, group, group_channel, group_channel_last, ..] => {
+                    [server, dweller_administrator, server_administrator, server_group, group_channel, group_channel_last, ..] => {
                         Self::remove_channel_from_group(
                             program_id,
                             server,
-                            dweller,
-                            server_admin,
-                            channel,
-                            group,
+                            dweller_administrator,
+                            server_administrator,
+                            server_group,
                             group_channel,
                             group_channel_last,
                         )
@@ -839,11 +835,12 @@ impl Processor {
             Instruction::DeleteGroup => {
                 msg!("Instruction: DeleteGroup");
                 match accounts {
-                    [dweller, server_administrator, server, server_group, server_group_last, ..] => {
+                    [dweller_administrator, server_administrator, server, server_group, server_group_last, ..] =>
+                    {
                         let group_channels = &accounts[5..];
                         Self::delete_group(
                             program_id,
-                            dweller,
+                            dweller_administrator,
                             server_administrator,
                             server,
                             server_group,
@@ -859,21 +856,26 @@ impl Processor {
 
     fn delete_group<'a>(
         program_id: &Pubkey,
-        dweller: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
         server_administrator: &AccountInfo<'a>,
         server: &AccountInfo<'a>,
         server_group: &AccountInfo<'a>,
-        server_channel_last: &AccountInfo<'a>,
+        server_group_last: &AccountInfo<'a>,
         group_channels: &[AccountInfo<'a>],
     ) -> ProgramResult {
-        require_admin(program_id, dweller, server, server_administrator)?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
-        let channel_state = server_group.read_data_with_borsh::<ServerGroup>()?;
+        let server_group_state = server_group.read_data_with_borsh::<ServerGroup>()?;
         let group_key = create_index_with_seed(
             program_id,
             ServerGroup::SEED,
             server.key,
-            channel_state.index,
+            server_group_state.index,
         )?;
         if group_key == *server_group.key {
             for child in group_channels {
@@ -886,15 +888,18 @@ impl Processor {
                 )?;
 
                 if child_key == *child.key {
-                    swap_last_to_default::<GroupChannel>(child, child)?;
+                    swap_accounts::<GroupChannel>(child, child)?;
+                } else {
+                    return Err(Error::InvalidDerivedGroupChannelAddress.into());
                 }
             }
 
-            swap_last_to_default::<ServerGroup>(server_group, server_channel_last)?;
+            swap_accounts::<ServerGroup>(server_group, server_group_last)?;
 
-            let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
-            state.groups = state.groups.error_decrement()?;
-            state.serialize_const(&mut data)?;
+            let (mut data, mut server_state) = server.read_data_with_borsh_mut::<Server>()?;
+
+            server_state.groups = server_state.groups.error_decrement()?;
+            server_state.serialize_const(&mut data)?;
 
             return Ok(());
         }
@@ -921,7 +926,7 @@ impl Processor {
             channel_state.index,
         )?;
         if channel_key == *server_channel.key {
-            swap_last_to_default::<ServerChannel>(server_channel, server_channel_last)?;
+            swap_accounts::<ServerChannel>(server_channel, server_channel_last)?;
 
             let (mut data, mut state) = server.read_data_with_borsh_mut::<Server>()?;
             state.channels = state.channels.error_decrement()?;
@@ -937,34 +942,38 @@ impl Processor {
     fn remove_channel_from_group<'a>(
         program_id: &Pubkey,
         server: &AccountInfo<'a>,
-        dweller: &AccountInfo<'a>,
-        server_admin: &AccountInfo<'a>,
-        _channel: &AccountInfo<'a>,
-        group: &AccountInfo<'a>,
+        dweller_administrator: &AccountInfo<'a>,
+        server_administrator: &AccountInfo<'a>,
+        server_group: &AccountInfo<'a>,
         group_channel: &AccountInfo<'a>,
         group_channel_last: &AccountInfo<'a>,
     ) -> ProgramResult {
-        require_admin(program_id, dweller, server, server_admin)?;
+        require_admin(
+            program_id,
+            dweller_administrator,
+            server,
+            server_administrator,
+        )?;
 
         let group_channel_data: GroupChannel = group_channel.read_data_with_borsh()?;
         let group_channel_key = create_index_with_seed(
             program_id,
             GroupChannel::SEED,
-            group.key,
+            server_group.key,
             group_channel_data.index,
         )?;
         if group_channel_key == *group_channel.key {
-            swap_last_to_default::<GroupChannel>(group_channel, group_channel_last)?;
+            swap_accounts::<GroupChannel>(group_channel, group_channel_last)?;
 
             let (mut group_data, mut group_state) =
-                group.read_data_with_borsh_mut::<ServerGroup>()?;
+                server_group.read_data_with_borsh_mut::<ServerGroup>()?;
             group_state.channels = group_state.channels.error_decrement()?;
             group_state.serialize_const(&mut group_data)?;
 
-            return Ok(());
+            Ok(())
+        } else {
+            Err(Error::InvalidDerivedGroupChannelAddress.into())
         }
-
-        Err(Error::Failed.into())
     }
 
     fn add_channel_to_group<'a>(
@@ -984,7 +993,7 @@ impl Processor {
         )?;
 
         let (mut server_group_data, mut server_group_state) =
-            server.read_data_with_borsh_mut::<ServerGroup>()?;
+            server_group.read_data_with_borsh_mut::<ServerGroup>()?;
 
         let group_channel_key = create_index_with_seed(
             program_id,
@@ -992,21 +1001,22 @@ impl Processor {
             server_group.key,
             server_group_state.channels,
         )?;
+
         if group_channel_key == *group_channel.key {
             let (mut group_channel_data, mut group_channel_state) =
                 group_channel.read_data_with_borsh_mut::<GroupChannel>()?;
 
             if group_channel_state.version == StateVersion::Uninitialized {
-                group_channel_state.container = *server.key;
+                group_channel_state.version == StateVersion::V1;
+                group_channel_state.container = *server_group.key;
                 group_channel_state.index = server_group_state.channels;
                 group_channel_state.channel = *server_channel.key;
+                group_channel_state.serialize_const(&mut group_channel_data)?;
 
                 server_group_state.channels = server_group_state.channels.error_increment()?;
-
-                group_channel_state.serialize_const(&mut group_channel_data)?;
                 server_group_state.serialize_const(&mut server_group_data)?;
 
-                return Ok(());
+                Ok(())
             } else {
                 Err(ProgramError::AccountAlreadyInitialized)
             }
@@ -1026,17 +1036,17 @@ impl Processor {
     ) -> ProgramResult {
         if dweller.is_signer {
             remove_dweller_server(
+                program_id,
                 dweller,
                 dweller_server,
                 server,
-                program_id,
                 dweller_server_last,
             )?;
             remove_server_member(
+                program_id,
                 server,
                 server_member,
                 dweller,
-                program_id,
                 server_member_last,
             )?;
             return Ok(());
@@ -1173,12 +1183,12 @@ fn require_admin(
     Ok(())
 }
 
-fn remove_server_member(
-    server: &AccountInfo,
-    server_member: &AccountInfo,
-    dweller: &AccountInfo,
+fn remove_server_member<'a>(
     program_id: &Pubkey,
-    server_member_last: &AccountInfo,
+    server: &AccountInfo<'a>,
+    server_member: &AccountInfo<'a>,
+    dweller: &AccountInfo<'a>,
+    server_member_last: &AccountInfo<'a>,
 ) -> Result<(), ProgramError> {
     let mut server_data = server.try_borrow_mut_data()?;
     let mut server_state = Server::deserialize_const(&server_data)?;
@@ -1192,10 +1202,7 @@ fn remove_server_member(
         )?;
 
         if server_member_key == *server_member.key {
-            crate::program::swap_last_to_default::<ServerMember>(
-                server_member,
-                server_member_last,
-            )?;
+            crate::program::swap_accounts::<ServerMember>(server_member, server_member_last)?;
             server_state.members = server_state.members.error_decrement()?;
             server_state.serialize_const(&mut server_data)?;
             return Ok(());
@@ -1205,12 +1212,12 @@ fn remove_server_member(
     Err(Error::Failed.into())
 }
 
-fn remove_dweller_server(
-    dweller: &AccountInfo,
-    dweller_server: &AccountInfo,
-    server: &AccountInfo,
+fn remove_dweller_server<'a>(
     program_id: &Pubkey,
-    dweller_server_last: &AccountInfo,
+    dweller: &AccountInfo<'a>,
+    dweller_server: &AccountInfo<'a>,
+    server: &AccountInfo<'a>,
+    dweller_server_last: &AccountInfo<'a>,
 ) -> Result<(), ProgramError> {
     let mut dweller_data = dweller.try_borrow_mut_data()?;
     let mut dweller_state = Dweller::deserialize_const(&dweller_data)?;
@@ -1225,13 +1232,11 @@ fn remove_dweller_server(
         )?;
 
         if dweller_server_key == *dweller_server.key {
-            crate::program::swap_last_to_default::<DwellerServer>(
-                dweller_server,
-                dweller_server_last,
-            )?;
-            dweller_state.servers = dweller_state.servers.error_decrement()?;
+            crate::program::swap_accounts::<DwellerServer>(dweller_server, dweller_server_last)?;
 
+            dweller_state.servers = dweller_state.servers.error_decrement()?;
             dweller_state.serialize_const(&mut dweller_data)?;
+
             return Ok(());
         }
     }

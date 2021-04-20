@@ -105,10 +105,10 @@ pub enum Instruction {
     AddChannelToGroup,
 
     /// Accounts:
-    /// - write               server
+    /// - write              server
     /// - signer             dweller_administrator
     /// - read, derived      server_administrator
-    /// - read               channel
+    /// - read               server_channel
     /// - write, derived     group_channel
     /// - write, derived     group_channel_last
     RemoveChannelFromGroup,
@@ -383,7 +383,7 @@ pub fn add_channel(
 
 /// [Instruction::DeleteChannel]
 pub fn delete_channel(
-    dweller: &Pubkey,
+    dweller_administrator: &Pubkey,
     server_administrator: &Pubkey,
     server: &Pubkey,
     server_channel: &Pubkey,
@@ -391,7 +391,7 @@ pub fn delete_channel(
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::DeleteChannel.try_to_vec()?;
     let accounts = vec![
-        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*dweller_administrator, true),
         AccountMeta::new_readonly(*server_administrator, false),
         AccountMeta::new(*server, false),
         AccountMeta::new(*server_channel, false),
@@ -432,7 +432,7 @@ pub fn create_group(
 
 /// [Instruction::DeleteGroup]
 pub fn delete_group(
-    dweller: &Pubkey,
+    dweller_administrator: &Pubkey,
     server_administrator: &Pubkey,
     server: &Pubkey,
     server_group: &Pubkey,
@@ -441,7 +441,7 @@ pub fn delete_group(
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::DeleteGroup.try_to_vec()?;
     let mut accounts = vec![
-        AccountMeta::new(*dweller, true),
+        AccountMeta::new(*dweller_administrator, true),
         AccountMeta::new_readonly(*server_administrator, false),
         AccountMeta::new(*server, false),
         AccountMeta::new(*server_group, false),
@@ -488,18 +488,18 @@ pub fn add_channel_to_group(
 /// [Instruction::RemoveChannelFromGroup]
 pub fn remove_channel_from_group(
     server: &Pubkey,
-    dweller: &Pubkey,
+    dweller_administrator: &Pubkey,
     server_administrator: &Pubkey,
-    channel: &Pubkey,
+    server_group: &Pubkey,
     group_channel: &Pubkey,
     group_channel_last: &Pubkey,
 ) -> Result<solana_program::instruction::Instruction, ProgramError> {
     let data = Instruction::RemoveChannelFromGroup.try_to_vec()?;
     let accounts = vec![
         AccountMeta::new(*server, false),
-        AccountMeta::new(*dweller, true),
+        AccountMeta::new_readonly(*dweller_administrator, true),
         AccountMeta::new_readonly(*server_administrator, false),
-        AccountMeta::new_readonly(*channel, false),
+        AccountMeta::new_readonly(*server_group, false),
         AccountMeta::new(*group_channel, false),
         AccountMeta::new(*group_channel_last, false),
     ];

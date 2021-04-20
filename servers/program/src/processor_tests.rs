@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use borsh::BorshDeserialize;
-use solana_program::{pubkey::Pubkey, system_instruction};
+use solana_program::{msg, pubkey::Pubkey, system_instruction};
 use solana_program_test::*;
 use solana_sdk::{
     account::Account,
@@ -21,7 +21,8 @@ use crate::{
     state::*,
     test::{
         add_channel_to_group_transaction, add_channel_transaction, add_invite_transaction,
-        create_group_transaction, join_server_transaction,
+        create_group_transaction, delete_channel_transaction, delete_group_transaction,
+        join_server_transaction, remove_channel_from_group_transaction,
     },
 };
 
@@ -406,6 +407,70 @@ async fn positive_add_flow() {
         .process_transaction(trx)
         .await
         .unwrap();
+
+    let account_state: ServerGroup = get_account_data(&mut blockchain, &server_groups[0]).await;
+    assert_eq!(account_state.channels, 1);
+
+    // removing/deleting
+
+    // groups/channels
+
+    let trx = remove_channel_from_group_transaction(
+        &blockchain.payer,
+        &server.pubkey(),
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server_groups[0],
+        &group_channels[0],
+        &group_channels[0],
+        blockchain.last_blockhash,
+    );
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let trx = delete_group_transaction(
+        &blockchain.payer,
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server.pubkey(),
+        &server_groups[0],
+        &server_groups[0],
+        &group_channels[0],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.groups, 0);
+
+    let trx = delete_channel_transaction(
+        &blockchain.payer,
+        &dweller_admin_1,
+        &server_administrators[0],
+        &server.pubkey(),
+        &server_channels[0],
+        &server_channels[0],
+        blockchain.last_blockhash,
+    );
+
+    blockchain
+        .banks_client
+        .process_transaction(trx)
+        .await
+        .unwrap();
+
+    let account_state: Server = get_account_data(&mut blockchain, &server.pubkey()).await;
+    assert_eq!(account_state.channels, 0);
+
+    // members/admin
 }
 
 pub async fn create_derived_account_index(

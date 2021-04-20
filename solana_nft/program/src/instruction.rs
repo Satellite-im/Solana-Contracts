@@ -131,7 +131,11 @@ impl NftInstruction {
     /// - nft program id
     /// - account created for nft mint metadata
     /// - mint data
-    pub fn initialize_mint(mint_account: &Pubkey, data: MintData, authority: &Pubkey) -> Instruction {
+    pub fn initialize_mint(
+        mint_account: &Pubkey,
+        data: MintData,
+        authority: &Pubkey,
+    ) -> Instruction {
         let data = NftInstruction::InitializeMint(data);
         let accounts = vec![
             AccountMeta::new(*mint_account, false),

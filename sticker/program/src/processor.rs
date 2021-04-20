@@ -399,7 +399,9 @@ impl Processor {
         // Need in Rent account because we call NFT program instruction which uses it
         let _rent_account_info = next_account_info(account_info_iter)?;
 
-        if *token_program_id.key != spl_token::id() || *nft_token_program_id.key != spl_nft_erc_721::id() {
+        if *token_program_id.key != spl_token::id()
+            || *nft_token_program_id.key != spl_nft_erc_721::id()
+        {
             return Err(ProgramError::IncorrectProgramId);
         }
 

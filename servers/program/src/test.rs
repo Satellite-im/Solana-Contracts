@@ -7,7 +7,9 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use crate::instruction::{self, AddChannelInput, CreateGroupInput};
+use crate::instruction::{
+    self, delete_group, remove_channel_from_group, AddChannelInput, CreateGroupInput,
+};
 
 pub fn add_invite_transaction(
     payer: &Keypair,
@@ -123,6 +125,82 @@ pub fn add_channel_to_group_transaction(
             server_channel,
             server_group,
             group_channel,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
+    transaction
+}
+
+pub fn remove_channel_from_group_transaction(
+    payer: &Keypair,
+    server: &Pubkey,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    server_group: &Pubkey,
+    group_channel: &Pubkey,
+    group_channel_last: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::remove_channel_from_group(
+            server,
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            server_group,
+            group_channel,
+            group_channel_last,
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
+    transaction
+}
+
+pub fn delete_group_transaction(
+    payer: &Keypair,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    server: &Pubkey,
+    server_group: &Pubkey,
+    server_group_last: &Pubkey,
+    group_channels: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::delete_group(
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            server,
+            server_group,
+            server_group_last,
+            &[group_channels],
+        )
+        .unwrap()],
+        Some(&payer.pubkey()),
+    );
+    transaction.sign(&[payer, dweller_administrator], recent_blockhash);
+    transaction
+}
+
+pub fn delete_channel_transaction(
+    payer: &Keypair,
+    dweller_administrator: &Keypair,
+    server_administrator: &Pubkey,
+    server: &Pubkey,
+    server_channel: &Pubkey,
+    server_channel_last: &Pubkey,
+    recent_blockhash: solana_program::hash::Hash,
+) -> Transaction {
+    let mut transaction = Transaction::new_with_payer(
+        &[instruction::delete_channel(
+            &dweller_administrator.pubkey(),
+            server_administrator,
+            server,
+            server_channel,
+            server_channel_last,
         )
         .unwrap()],
         Some(&payer.pubkey()),
