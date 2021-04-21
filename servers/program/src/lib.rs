@@ -14,8 +14,6 @@ pub mod program;
 /// state
 pub mod state;
 
-pub mod sdk;
-
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
