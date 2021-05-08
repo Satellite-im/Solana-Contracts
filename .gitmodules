@@ -1,6 +1,0 @@
-[submodule "spl"]
-	path = spl
-	url = git@github.com:solana-labs/solana-program-library.git
-[submodule "sattelite"]
-	path = sattelite
-	url = git@github.com:Satellite-im/Satellite-Contracts.git
