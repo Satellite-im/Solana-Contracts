@@ -39,6 +39,19 @@ const dwellerAccountLayout = BufferLayout.struct([
   BufferLayout.seq(BufferLayout.u8(), 32, 'status'),
 ]);
 
+const serverAccountLayout = BufferLayout.struct([
+  BufferLayout.u8('version'),
+  BufferLayout.seq(BufferLayout.u8(), 32, 'owner'),
+  BufferLayout.seq(BufferLayout.u8(), 32, 'name'),
+  BufferLayout.seq(BufferLayout.u8(), 64, 'photo_hash'),
+  BufferLayout.seq(BufferLayout.u8(), 64, 'db_hash'),
+  BufferLayout.nu64('members'),
+  BufferLayout.nu64('member_statuses'),
+  BufferLayout.nu64('administrators'),
+  BufferLayout.nu64('channels'),
+  BufferLayout.nu64('groups'),
+]);
+
 const instructionMaxSpan = Math.max(
   ...Object.values(LAYOUT.registry).map((r) => r.span),
 );
@@ -53,4 +66,6 @@ module.exports = {
   LAYOUT,
   encodeInstructionData,
   dwellerAccountLayout,
+  serverAccountLayout,
+  ADDRESS_TYPE_INPUT,
 }

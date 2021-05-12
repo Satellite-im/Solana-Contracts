@@ -21,7 +21,7 @@ pub fn create_base_index_with_seed(
     index: u64,
 ) -> Result<(Pubkey, Pubkey, u8, String), PubkeyError> {
     let (base, bump) = Pubkey::find_program_address(&[&seed_key.to_bytes()[..32]], program_id);
-    let seed = format!("{:?}{:?}", type_name, index,);
+    let seed = format!("{}{:?}", type_name, index,);
     Ok((
         Pubkey::create_with_seed(&base, &seed, program_id)?,
         base,
@@ -97,7 +97,7 @@ pub fn create_seeded_rent_except_account<'a>(
     program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
     let (address_to_create, program_address, bump_seed, seed) =
-        create_base_index_with_seed(&crate::id(), seed, owner_account_info.key, *index)?;
+        create_base_index_with_seed(program_id, seed, owner_account_info.key, *index)?;
     if program_address != *base_account_info.key {
         return Err(ProgramError::InvalidSeeds);
     }
