@@ -58,6 +58,11 @@ const friendInfoAccountLayout = BufferLayout.struct([
     BufferLayout.seq(BufferLayout.u8(), 32, 'user'),
 ]);
 
+const requestAccountLayout = BufferLayout.struct([
+    BufferLayout.seq(BufferLayout.u8(), 32, 'from'),
+    BufferLayout.seq(BufferLayout.u8(), 32, 'to'),
+]);
+
 const instructionMaxSpan = Math.max(
     ...Object.values(LAYOUT.registry).map((r) => r.span),
 );
@@ -73,4 +78,5 @@ module.exports = {
     encodeInstructionData,
     ADDRESS_TYPE_INPUT,
     friendInfoAccountLayout,
+    requestAccountLayout,
 }

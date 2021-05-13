@@ -12,9 +12,9 @@ return new Promise(resolve => setTimeout(resolve, ms));
 
 async function waitForAccount(connection, accountKey) {
 while (true) {
-    await sleep(3000);
     const accountInfo = await connection.getAccountInfo(accountKey);
     if (accountInfo === null) {
+        await sleep(3000);
         continue;
     } else {
         break;

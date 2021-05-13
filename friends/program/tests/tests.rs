@@ -313,7 +313,7 @@ async fn test_create_address() {
     let outgoing_req_to_create = Pubkey::create_with_seed(
         &base_program_address,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             request_index,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -341,7 +341,7 @@ async fn test_create_address() {
     let incoming_req_to_create = Pubkey::create_with_seed(
         &base_program_address,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             request_index,
             processor::Processor::INCOMING_REQUEST
         ),
@@ -454,7 +454,7 @@ async fn test_make_friend_request() {
     let request_from = Pubkey::create_with_seed(
         &request_from_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_from.requests_outgoing,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -476,7 +476,7 @@ async fn test_make_friend_request() {
     let request_to = Pubkey::create_with_seed(
         &request_to_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_to.requests_incoming,
             processor::Processor::INCOMING_REQUEST
         ),
@@ -609,7 +609,7 @@ async fn test_accept_friend_request() {
     let request_from = Pubkey::create_with_seed(
         &request_from_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_from.requests_outgoing,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -631,7 +631,7 @@ async fn test_accept_friend_request() {
     let request_to = Pubkey::create_with_seed(
         &request_to_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_to.requests_incoming,
             processor::Processor::INCOMING_REQUEST
         ),
@@ -836,7 +836,7 @@ async fn test_deny_friend_request() {
     let request_from = Pubkey::create_with_seed(
         &request_from_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_from.requests_outgoing,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -858,7 +858,7 @@ async fn test_deny_friend_request() {
     let request_to = Pubkey::create_with_seed(
         &request_to_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_to.requests_incoming,
             processor::Processor::INCOMING_REQUEST
         ),
@@ -1004,7 +1004,7 @@ async fn test_remove_friend_request() {
     let request_from = Pubkey::create_with_seed(
         &request_from_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_from.requests_outgoing,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -1026,7 +1026,7 @@ async fn test_remove_friend_request() {
     let request_to = Pubkey::create_with_seed(
         &request_to_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_to.requests_incoming,
             processor::Processor::INCOMING_REQUEST
         ),
@@ -1168,7 +1168,7 @@ async fn test_remove_friend() {
     let request_from = Pubkey::create_with_seed(
         &request_from_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_from.requests_outgoing,
             processor::Processor::OUTGOING_REQUEST
         ),
@@ -1190,7 +1190,7 @@ async fn test_remove_friend() {
     let request_to = Pubkey::create_with_seed(
         &request_to_base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             friend_info_to.requests_incoming,
             processor::Processor::INCOMING_REQUEST
         ),

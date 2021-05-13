@@ -12,7 +12,7 @@ const {
 
 const {
     waitForAccount,
-  } = require('./../client/helper.js');
+} = require('./../client/helper.js');
 
 const NETWORK = clusterApiUrl('devnet');
 const fs = require('fs');
@@ -30,9 +30,9 @@ const PAYER_ACCOUNT = new Account(pk);
 
     let friendInfoAccount = await createFriendInfo(connection, PAYER_ACCOUNT, userAccount);
 
-    await waitForAccount(connection, friendInfoAccount);
-
     console.log("New FriendInfo account was created and initialized: ", friendInfoAccount.toBase58());
+
+    await waitForAccount(connection, friendInfoAccount);
 
     let friendInfoData = await getFriendInfo(connection, friendInfoAccount);
 
