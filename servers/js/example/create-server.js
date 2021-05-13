@@ -28,7 +28,15 @@ const {
   
       const dwellerAccount = await createDweller(connection, PAYER_ACCOUNT, "test_name");
 
-      await sleep(10000);  // wait till block are finalized and we can use new dwellerAccount
+      while (true) {  // wait till block are finalized and we can use new dwellerAccount
+        await sleep(3000);
+        const accountInfo = await connection.getAccountInfo(dwellerAccount.publicKey);
+        if (accountInfo === null) {
+            continue;
+        } else {
+            break;
+        }
+      }
 
       let dwellerServer = await createServer(connection, PAYER_ACCOUNT, dwellerAccount, "test_name");
       console.log("And here is the new dweller server: ", dwellerServer.publicKey.toBase58());

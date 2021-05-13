@@ -18,14 +18,6 @@ const SERVER_PROGRAM_ID = new PublicKey(
   'GfSqvy1yHF2wFf7R2e3HXAFDYsH1WdbS4jktkA1T7arP'
 );
 
-const RENT_PROGRAM = new PublicKey(
-  'SysvarRent111111111111111111111111111111111'
-);
-
-const SYSTEM_PROGRAM = new PublicKey(
-  '11111111111111111111111111111111'
-);
-
 const DWELLER_SERVER_SEED = "DwellerServer";
 
 const SERVER_MEMBER_SEED = "ServerMember";
@@ -111,8 +103,8 @@ async function createDerivedAccount(connection, payerAccount, seedKey, seedStrin
       {pubkey: seedKey, isSigner: false, isWritable: false},
       {pubkey: base[0], isSigner: false, isWritable: false},
       {pubkey: addressToCreate, isSigner: false, isWritable: true},
-      {pubkey: RENT_PROGRAM, isSigner: false, isWritable: false},
-      {pubkey: SYSTEM_PROGRAM, isSigner: false, isWritable: false},
+      {pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false},
+      {pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
     ],
     programId: SERVER_PROGRAM_ID,
     data: encodeInstructionData(params)
