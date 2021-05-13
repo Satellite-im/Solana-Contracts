@@ -51,7 +51,7 @@ async function createDerivedAccount(connection, payerAccount, seedKey, seedStrin
     return addressToCreate;
 }
 
-async function initializeStickerFactory(stickerFactoryKey, ownerKey) {
+function initializeStickerFactory(stickerFactoryKey, ownerKey) {
     return new TransactionInstruction({
         keys: [
             {pubkey: stickerFactoryKey, isSigner: false, isWritable: true},
@@ -80,7 +80,7 @@ async function createStickerFactory(connection, payerAccount, stickerFactoryOwne
           programId: STICKER_PROGRAM_ID,
         })
       ).add(
-        await initializeStickerFactory(stickerFactoryAccount.publicKey, stickerFactoryOwnerAccount.publicKey)
+        initializeStickerFactory(stickerFactoryAccount.publicKey, stickerFactoryOwnerAccount.publicKey)
     );
 
     await sendAndConfirmTransaction(
@@ -95,6 +95,16 @@ async function createStickerFactory(connection, payerAccount, stickerFactoryOwne
     return stickerFactoryAccount;
 }
 
+async function getStickerFactory(connection, stickerFactoryKey) {
+    const accountInfo = await connection.getAccountInfo(stickerFactoryKey);
+    if (accountInfo === null) {
+        throw 'Error: cannot find the account';
+    }
+    const info = stickerFactoryAccountLayout.decode(Buffer.from(accountInfo.data));
+    return info;
+}
+
 module.exports = {
-    createStickerFactory
+    createStickerFactory,
+    getStickerFactory
 }
