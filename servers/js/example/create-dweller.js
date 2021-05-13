@@ -6,19 +6,12 @@ const {
 const {
   createDweller
 } = require('./../client/server.js');
-const {
-  dwellerAccountLayout
-} = require('./../client/layout.js');
 
 const NETWORK = clusterApiUrl('devnet');
 const fs = require('fs');
 const keyPath = 'test_wallet.json';
 const pk = JSON.parse(fs.readFileSync(keyPath));
 const PAYER_ACCOUNT = new Account(pk);
-
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 (async function() {
 

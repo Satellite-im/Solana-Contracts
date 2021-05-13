@@ -163,9 +163,19 @@ async function createServer(connection, payerAccount, dwellerAccount, name) {
   return server;
 }
 
+async function getServer(connection, serverPubkey) {
+  const accountInfo = await connection.getAccountInfo(serverPubkey);
+  if (accountInfo === null) {
+    throw 'Error: cannot find the account';
+  }
+  const info = serverAccountLayout.decode(Buffer.from(accountInfo.data));
+  return info;
+}
+
 module.exports = {
   SERVER_PROGRAM_ID,
   createDweller,
   getDweller,
   createServer,
+  getServer,
 }
