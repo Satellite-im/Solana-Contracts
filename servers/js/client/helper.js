@@ -1,14 +1,12 @@
-
-
 function stringToBuffer(value, length) {
-  return Buffer.concat([
-      Buffer.from(value, 'utf-8'), 
-      Buffer.alloc(length, 0x00)
-    ], length)
+  return Buffer.concat(
+    [Buffer.from(value, "utf-8"), Buffer.alloc(length, 0x00)],
+    length
+  );
 }
 
 async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function waitForAccount(connection, accountKey) {
@@ -16,14 +14,14 @@ async function waitForAccount(connection, accountKey) {
     await sleep(3000);
     const accountInfo = await connection.getAccountInfo(accountKey);
     if (accountInfo === null) {
-        continue;
+      continue;
     } else {
-        break;
+      break;
     }
   }
 }
 
 module.exports = {
-    stringToBuffer,
-    waitForAccount,
-}
+  stringToBuffer,
+  waitForAccount,
+};
