@@ -280,8 +280,20 @@ async function createArtist(
   return artistKey;
 }
 
+async function getArtistAccountData(connection, artistKey) {
+  const accountInfo = await connection.getAccountInfo(artistKey);
+  if (accountInfo === null) {
+    throw "Error: cannot find the account";
+  }
+  const info = artistAccountLayout.decode(
+    Buffer.from(accountInfo.data)
+  );
+  return info;
+}
+
 module.exports = {
   createStickerFactory,
   getStickerFactory,
   createArtist,
+  getArtistAccountData,
 };
