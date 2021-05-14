@@ -1,13 +1,8 @@
-const {
-  Connection,
-  Account,
-  clusterApiUrl,
-  PublicKey,
-} = require("@solana/web3.js");
+const { Connection, Account, clusterApiUrl } = require("@solana/web3.js");
 
 const {
   createStickerFactory,
-  getStickerFactory,
+  createArtist,
 } = require("./../client/sticker.js");
 
 const { waitForAccount } = require("./../client/helper.js");
@@ -31,19 +26,30 @@ const PAYER_ACCOUNT = new Account(pk);
 
   await waitForAccount(connection, stickerFactoryAccount.publicKey);
 
-  let stickerFactoryData = await getStickerFactory(
-    connection,
-    stickerFactoryAccount.publicKey
-  );
-
   console.log(
     "New StickerFactory account was created and initialized: ",
     stickerFactoryAccount.publicKey.toBase58()
   );
-  console.log("Sticker factory account data:");
-  console.log({
-    artist_count: stickerFactoryData.artist_count,
-    sticker_count: stickerFactoryData.sticker_count,
-    owner: new PublicKey(Buffer.from(stickerFactoryData.owner)).toBase58(),
-  });
+
+  let artistUserAccount = new Account();
+  let userTokenAccount = new Account();
+  let userTokenAccountOwner = new Account();
+  let data = {
+    name: new Array(32).fill(2, 0, 32),
+    signature: new Array(256).fill(3, 0, 256),
+    description: new Array(256).fill(4, 0, 256),
+  };
+
+  let artistKey = await createArtist(
+    connection,
+    PAYER_ACCOUNT,
+    artistUserAccount,
+    userTokenAccount,
+    userTokenAccountOwner,
+    stickerFactoryAccount,
+    stickerFactoryOwner,
+    data
+  );
+
+  console.log("New artist was created and initialized: ", artistKey.toBase58());
 })();
