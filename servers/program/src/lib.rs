@@ -20,4 +20,4 @@ mod entrypoint;
 // Export current sdk types for downstream users building with a different sdk version
 pub use solana_program;
 
-solana_program::declare_id!("BDhwBerjCPBbT6NpcwwQ4m923JCB56vC1fauSxfdhYHy");
+solana_program::declare_id!("GfSqvy1yHF2wFf7R2e3HXAFDYsH1WdbS4jktkA1T7arP");

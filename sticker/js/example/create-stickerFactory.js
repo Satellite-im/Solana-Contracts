@@ -1,5 +1,6 @@
 const { Connection, Account, clusterApiUrl } = require("@solana/web3.js");
-const { createDweller } = require("./../client/server.js");
+
+const { createStickerFactory } = require("./../client/sticker.js");
 
 const NETWORK = clusterApiUrl("devnet");
 const fs = require("fs");
@@ -10,11 +11,16 @@ const PAYER_ACCOUNT = new Account(pk);
 (async function () {
   const connection = new Connection(NETWORK);
 
-  const dwellerAccount = await createDweller(
+  let stickerFactoryOwner = new Account();
+
+  let stickerFactoryAccount = await createStickerFactory(
     connection,
     PAYER_ACCOUNT,
-    "test_name"
+    stickerFactoryOwner
   );
 
-  console.log(`Dweller created with pubkey ${dwellerAccount.publicKey}`);
+  console.log(
+    "New StickerFactory account was created and initialized: ",
+    stickerFactoryAccount.publicKey.toBase58()
+  );
 })();

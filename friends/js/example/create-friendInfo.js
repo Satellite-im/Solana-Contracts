@@ -1,5 +1,6 @@
 const { Connection, Account, clusterApiUrl } = require("@solana/web3.js");
-const { createDweller } = require("./../client/server.js");
+
+const { createFriendInfo } = require("./../client/friends.js");
 
 const NETWORK = clusterApiUrl("devnet");
 const fs = require("fs");
@@ -10,11 +11,16 @@ const PAYER_ACCOUNT = new Account(pk);
 (async function () {
   const connection = new Connection(NETWORK);
 
-  const dwellerAccount = await createDweller(
+  let userAccount = new Account();
+
+  let friendInfoAccount = await createFriendInfo(
     connection,
     PAYER_ACCOUNT,
-    "test_name"
+    userAccount
   );
 
-  console.log(`Dweller created with pubkey ${dwellerAccount.publicKey}`);
+  console.log(
+    "New FriendInfo account was created and initialized: ",
+    friendInfoAccount.toBase58()
+  );
 })();

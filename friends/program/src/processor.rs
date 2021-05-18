@@ -44,7 +44,7 @@ impl Processor {
         let (base, _) = Pubkey::find_program_address(&[&key.to_bytes()[..32]], program_id);
         Ok(Pubkey::create_with_seed(
             &base,
-            &format!("{:?}{:?}", index, seed),
+            &format!("{:?}{}", index, seed),
             program_id,
         )?)
     }
@@ -322,7 +322,7 @@ impl Processor {
         let generated_request_from_to_key = Pubkey::create_with_seed(
             &base,
             &format!(
-                "{:?}{:?}",
+                "{:?}{}",
                 friend_info_from.requests_outgoing,
                 Self::OUTGOING_REQUEST
             ),
@@ -337,7 +337,7 @@ impl Processor {
         let generated_request_to_from_key = Pubkey::create_with_seed(
             &base,
             &format!(
-                "{:?}{:?}",
+                "{:?}{}",
                 friend_info_to.requests_incoming,
                 Self::INCOMING_REQUEST
             ),
@@ -780,7 +780,7 @@ impl Processor {
                 }
                 let address_to_create = Pubkey::create_with_seed(
                     &program_base_address,
-                    &format!("{:?}{:?}", index, Self::OUTGOING_REQUEST),
+                    &format!("{:?}{}", index, Self::OUTGOING_REQUEST),
                     program_id,
                 )?;
                 if address_to_create != *account_to_create_info.key {
@@ -791,7 +791,7 @@ impl Processor {
                     payer_account_info.clone(),
                     account_to_create_info.clone(),
                     base_account_info.clone(),
-                    &format!("{:?}{:?}", index, Self::OUTGOING_REQUEST),
+                    &format!("{:?}{}", index, Self::OUTGOING_REQUEST),
                     rent.minimum_balance(Request::LEN),
                     Request::LEN as u64,
                     program_id,
@@ -808,7 +808,7 @@ impl Processor {
                 }
                 let address_to_create = Pubkey::create_with_seed(
                     &program_base_address,
-                    &format!("{:?}{:?}", index, Self::INCOMING_REQUEST),
+                    &format!("{:?}{}", index, Self::INCOMING_REQUEST),
                     program_id,
                 )?;
                 if address_to_create != *account_to_create_info.key {
@@ -819,7 +819,7 @@ impl Processor {
                     payer_account_info.clone(),
                     account_to_create_info.clone(),
                     base_account_info.clone(),
-                    &format!("{:?}{:?}", index, Self::INCOMING_REQUEST),
+                    &format!("{:?}{}", index, Self::INCOMING_REQUEST),
                     rent.minimum_balance(Request::LEN),
                     Request::LEN as u64,
                     program_id,
