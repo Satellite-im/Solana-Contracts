@@ -138,7 +138,7 @@ impl Processor {
             return Err(ProgramError::InvalidSeeds);
         }
 
-        let full_seed = format!("{:?}{:?}", index, seed);
+        let full_seed = format!("{:?}{}", index, seed);
 
         let generated_address_to_create =
             Pubkey::create_with_seed(&program_base_address, &full_seed, program_id)?;
@@ -202,7 +202,7 @@ impl Processor {
         );
         let generated_artist_key = Pubkey::create_with_seed(
             &base,
-            &format!("{:?}{:?}", sticker_factory.artist_count, Self::ARTIST_SEED),
+            &format!("{:?}{}", sticker_factory.artist_count, Self::ARTIST_SEED),
             program_id,
         )?;
         if generated_artist_key != *artist_to_create_account_info.key {
@@ -271,7 +271,7 @@ impl Processor {
         let generated_sticker_key = Pubkey::create_with_seed(
             &base,
             &format!(
-                "{:?}{:?}",
+                "{:?}{}",
                 sticker_factory.sticker_count,
                 Self::STICKER_SEED
             ),

@@ -378,7 +378,7 @@ async fn test_register_artist_instruction() {
     let address_to_create = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.artist_count,
             processor::Processor::ARTIST_SEED
         ),
@@ -484,7 +484,7 @@ async fn test_create_new_sticker_instruction() {
     let artist_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.artist_count,
             processor::Processor::ARTIST_SEED
         ),
@@ -537,7 +537,7 @@ async fn test_create_new_sticker_instruction() {
     let sticker_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.sticker_count,
             processor::Processor::STICKER_SEED
         ),
@@ -655,7 +655,7 @@ async fn test_buy_sticker_instruction() {
     let artist_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.artist_count,
             processor::Processor::ARTIST_SEED
         ),
@@ -708,7 +708,7 @@ async fn test_buy_sticker_instruction() {
     let sticker_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.sticker_count,
             processor::Processor::STICKER_SEED
         ),
@@ -895,7 +895,7 @@ async fn test_change_sticker_price_instruction() {
     let artist_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.artist_count,
             processor::Processor::ARTIST_SEED
         ),
@@ -948,7 +948,7 @@ async fn test_change_sticker_price_instruction() {
     let sticker_key = Pubkey::create_with_seed(
         &base,
         &format!(
-            "{:?}{:?}",
+            "{:?}{}",
             factory_info.sticker_count,
             processor::Processor::STICKER_SEED
         ),

@@ -11,15 +11,15 @@ test-bpf = []
 num-derive = "0.3"
 num-traits = "0.2"
 num_enum = "0.5.1"
-solana-program = "1.6.5"
+solana-program = "1.7.6"
 thiserror = "1.0"
-borsh = "0.8.2"
+borsh = "0.9.1"
 spl-token = { git="https://github.com/solana-labs/solana-program-library", features = [ "no-entrypoint" ] }
 spl-nft-erc-721 = { path="../../solana_nft/program", features = [ "no-entrypoint" ] }
 
 [dev-dependencies]
-solana-program-test = "1.6.5"
-solana-sdk = "1.6.5"
+solana-program-test = "1.7.6"
+solana-sdk = "1.7.6"
 url = "2.2.1"
 
 [lib]
