@@ -14,12 +14,13 @@ const {
 } = require("./../client/layout.js");
 
 const FRIENDS_PROGRAM_ID = new PublicKey(
-  "92k8fHjwZV1tzFhokS1NoyLz65vhz3E3VdEcghXF4GRr"
+  "BxX6o2HG5DWrJt2v8GMSWNG2V2NtxNbAUF3wdE5Ao5gS"
 );
 
 const FRIEND_INFO_SEED = "friendinfo";
 const OUTGOING_REQUEST = "outgoing";
 const INCOMING_REQUEST = "incoming";
+const FRIEND_SEED = "friend";
 
 async function createDerivedAccount(
   connection,
@@ -28,10 +29,18 @@ async function createDerivedAccount(
   seedString,
   params
 ) {
-  let base = await PublicKey.findProgramAddress(
+  //Qui ho dovuto agggiungere l'if per gestire il caso del "createFriend"
+  let base;
+  if (params.createAccount.friend) {
+     base = await PublicKey.findProgramAddress(
+      [seedKey.toBytes(), seedKey.toBytes()],
+      FRIENDS_PROGRAM_ID
+    );
+  } else {
+   base = await PublicKey.findProgramAddress(
     [seedKey.toBytes()],
     FRIENDS_PROGRAM_ID
-  );
+  );}
   let addressToCreate = await PublicKey.createWithSeed(
     base[0],
     seedString,
@@ -49,9 +58,7 @@ async function createDerivedAccount(
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData(params),
   });
-
   let transaction = new Transaction().add(instruction);
-
   await sendAndConfirmTransaction(connection, transaction, [payerAccount], {
     commitment: "singleGossip",
     preflightCommitment: "singleGossip",
@@ -108,12 +115,29 @@ async function getFriendInfo(connection, friendInfoKey) {
   return info;
 }
 
+// Nuova, da testare
+async function createFriend(connection, payerAccount, userAccount) {
+  let params= { createAccount: { friend: { key: userAccount.publicKey.toBytes() } } };
+  console.log(userAccount.publicKey.toString());
+  console.log(params);
+  let friendKey = await createDerivedAccount(
+    connection,
+    payerAccount,
+    userAccount.publicKey,
+    FRIEND_SEED,
+    params
+  );
+
+  return friendKey;
+}
+
 async function initFriendRequest(
   requestFromToKey,
   requestToFromKey,
   friendInfoFromKey,
   friendInfoToKey,
-  userFromKey
+  userFromKey,
+  paddedBuffer
 ) {
   return new TransactionInstruction({
     keys: [
@@ -126,7 +150,40 @@ async function initFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      makeRequest: {},
+      makeRequest: [paddedBuffer.slice(0, 32), paddedBuffer.slice(32, 64)],
+    }),
+  });
+}
+
+// Nuova, da testare
+async function initAcceptFriendRequest(
+  requestFromToKey,
+  requestToFromKey,
+  lastRequestFromToKey,
+  lastRequestToFromKey,
+  friendInfoFromKey,
+  friendInfoToKey,
+  friendToKey,
+  friendFromKey,
+  userFromKey,
+  paddedBuffer
+) {
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: requestFromToKey, isSigner: false, isWritable: true },
+      { pubkey: requestToFromKey, isSigner: false, isWritable: true },
+      { pubkey: lastRequestFromToKey, isSigner: false, isWritable: true },
+      { pubkey: lastRequestToFromKey, isSigner: false, isWritable: true },
+      { pubkey: friendInfoFromKey, isSigner: false, isWritable: true },
+      { pubkey: friendInfoToKey, isSigner: false, isWritable: true },
+      { pubkey: friendToKey, isSigner: false, isWritable: true },
+      { pubkey: friendFromKey, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: true, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: FRIENDS_PROGRAM_ID,
+    data: encodeInstructionData({
+      acceptRequest: [paddedBuffer.slice(0, 32), paddedBuffer.slice(32, 64)],
     }),
   });
 }
@@ -137,7 +194,8 @@ async function createFriendRequest(
   userFromAccount,
   userToKey,
   friendInfoFromKey,
-  friendInfoToKey
+  friendInfoToKey,
+  paddedBuffer
 ) {
   let friendInfoFromData = await getFriendInfo(connection, friendInfoFromKey);
   let params = {
@@ -173,7 +231,8 @@ async function createFriendRequest(
       requestToAccount,
       friendInfoFromKey,
       friendInfoToKey,
-      userFromAccount.publicKey
+      userFromAccount.publicKey,
+      paddedBuffer
     )
   );
 
@@ -189,6 +248,49 @@ async function createFriendRequest(
   return { outgoing: requestFromAccount, incoming: requestToAccount };
 }
 
+// Nuova, qui vanno creati i derived accounts, analogamente a createFriendRequest (non passate direttamente le chiavi), altrimenti non va il Programma, che fa il controllo incrociato sulle keys (riga 522 processor.rs)
+async function acceptFriendRequest(
+  connection,
+  payerAccount,
+  requestFromToKey,
+  requestToFromKey,
+  lastRequestFromToKey,
+  lastRequestToFromKey,
+  friendInfoFromKey,
+  friendInfoToKey,
+  friendToKey,
+  friendFromKey,
+  userFromAccount,
+  paddedBuffer
+) {
+  
+  let transaction = new Transaction().add(
+    await initAcceptFriendRequest(
+      requestFromToKey,
+      requestToFromKey,
+      lastRequestFromToKey,
+      lastRequestToFromKey,
+      friendInfoFromKey,
+      friendInfoToKey,
+      friendToKey,
+      friendFromKey,
+      userFromAccount.publicKey,
+      paddedBuffer
+    )
+  );
+
+  await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [payerAccount, userFromAccount],
+    {
+      commitment: "singleGossip",
+      preflightCommitment: "singleGossip",
+    }
+  );
+  return { result: true };
+}
+
 async function getFriendRequest(connection, friendRequestKey) {
   const accountInfo = await connection.getAccountInfo(friendRequestKey);
   if (accountInfo === null) {
@@ -200,7 +302,9 @@ async function getFriendRequest(connection, friendRequestKey) {
 
 module.exports = {
   createFriendInfo,
+  createFriend,
   getFriendInfo,
   createFriendRequest,
+  acceptFriendRequest,
   getFriendRequest,
 };

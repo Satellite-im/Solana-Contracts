@@ -295,6 +295,8 @@ impl Processor {
     pub fn process_create_request_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        encrypted_key1: [u8; 32],
+        encrypted_key2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let request_from_to_account_info = next_account_info(account_info_iter)?;
@@ -379,9 +381,13 @@ impl Processor {
 
         request_from_to.from = friend_info_from.user;
         request_from_to.to = friend_info_to.user;
+        request_from_to.encrypted_key1 = encrypted_key1;
+        request_from_to.encrypted_key2 = encrypted_key2;
 
         request_to_from.from = friend_info_from.user;
         request_to_from.to = friend_info_to.user;
+        request_to_from.encrypted_key1 = encrypted_key1;
+        request_to_from.encrypted_key2 = encrypted_key2;
 
         friend_info_from.requests_outgoing =
             friend_info_from
@@ -408,8 +414,8 @@ impl Processor {
     pub fn process_accept_request_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        thread_id1: [u8; 32],
-        thread_id2: [u8; 32],
+        encrypted_key1: [u8; 32],
+        encrypted_key2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let request_from_to_account_info = next_account_info(account_info_iter)?;
@@ -548,13 +554,13 @@ impl Processor {
             program_id,
         )?;
 
-        friend_to.thread_id1 = thread_id1;
-        friend_to.thread_id2 = thread_id2;
+        friend_to.encrypted_key1 = request_from_to.encrypted_key1;
+        friend_to.encrypted_key2 = request_from_to.encrypted_key2;
         friend_to.user = friend_info_to.user;
         friend_to.friend = friend_info_from.user;
 
-        friend_from.thread_id1 = thread_id1;
-        friend_from.thread_id2 = thread_id2;
+        friend_from.encrypted_key1 = encrypted_key1;
+        friend_from.encrypted_key2 = encrypted_key2;
         friend_from.user = friend_info_from.user;
         friend_from.friend = friend_info_to.user;
 
@@ -874,14 +880,17 @@ impl Processor {
                 msg!("Instruction: InitFriendInfo");
                 Self::process_init_friend_info_instruction(program_id, accounts)
             }
-            FriendsInstruction::MakeRequest => {
+            FriendsInstruction::MakeRequest(encrypted_key1, encrypted_key2) => {
                 msg!("Instruction: MakeRequest");
-                Self::process_create_request_instruction(program_id, accounts)
+                msg!("{:?} {:?}", encrypted_key1, encrypted_key2);
+                Self::process_create_request_instruction(
+                    program_id, accounts, encrypted_key1, encrypted_key2,
+                )
             }
-            FriendsInstruction::AcceptRequest(thread_id1, thread_id2) => {
+            FriendsInstruction::AcceptRequest(encrypted_key1, encrypted_key2) => {
                 msg!("Instruction: AcceptRequest");
                 Self::process_accept_request_instruction(
-                    program_id, accounts, thread_id1, thread_id2,
+                    program_id, accounts, encrypted_key1, encrypted_key2,
                 )
             }
             FriendsInstruction::DenyRequest => {

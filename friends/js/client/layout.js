@@ -7,14 +7,18 @@ ADDRESS_TYPE_INPUT.addVariant(1, BufferLayout.nu64("index"), "requestOutgoing");
 ADDRESS_TYPE_INPUT.addVariant(2, BufferLayout.nu64("index"), "requestIncoming");
 ADDRESS_TYPE_INPUT.addVariant(
   3,
-  BufferLayout.seq(BufferLayout.u8(), 32, "key"),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.u8(), 32, "key")]),
   "friend"
 );
 
 const LAYOUT = BufferLayout.union(BufferLayout.u8("instruction"));
 LAYOUT.addVariant(0, undefined, "initFriendInfo");
 
-LAYOUT.addVariant(1, undefined, "makeRequest");
+LAYOUT.addVariant(
+  1,
+  BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 2),
+  "makeRequest"
+);
 
 LAYOUT.addVariant(
   2,

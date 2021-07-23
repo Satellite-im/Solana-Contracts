@@ -38,7 +38,7 @@ pub enum FriendsInstruction {
     ///   2. `[w]` Friend info of account which request friendship
     ///   3. `[w]` Friend info of account with which friendship requested
     ///   4. `[rs]` friend_info_from's "user" key. To verify friendship request
-    MakeRequest,
+    MakeRequest([u8; 32], [u8; 32]),
 
     /// AcceptRequest
     ///
@@ -148,8 +148,10 @@ pub fn make_request(
     friend_info_from: &Pubkey,
     friend_info_to: &Pubkey,
     user_from: &Pubkey,
+    encrypted_key1: [u8; 32],
+    encrypted_key2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::MakeRequest;
+    let init_data = FriendsInstruction::MakeRequest(encrypted_key1, encrypted_key2);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -180,10 +182,10 @@ pub fn accept_request(
     friend_to: &Pubkey,
     friend_from: &Pubkey,
     user_to: &Pubkey,
-    thread_id1: [u8; 32],
-    thread_id2: [u8; 32],
+    encrypted_key1: [u8; 32],
+    encrypted_key2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::AcceptRequest(thread_id1, thread_id2);
+    let init_data = FriendsInstruction::AcceptRequest(encrypted_key1, encrypted_key2);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;

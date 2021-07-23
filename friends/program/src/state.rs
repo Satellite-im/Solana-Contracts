@@ -19,6 +19,10 @@ pub struct FriendInfo {
 /// Friend request
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Default)]
 pub struct Request {
+    /// Encrypted key 1
+    pub encrypted_key1: [u8; 32],
+    /// Encrypted key 2
+    pub encrypted_key2: [u8; 32],
     /// From key
     pub from: Pubkey,
     /// To key
@@ -28,10 +32,10 @@ pub struct Request {
 /// Friend
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, Default)]
 pub struct Friend {
-    /// Conversation thread hash 1
-    pub thread_id1: [u8; 32],
-    /// Conversation thread hash 2
-    pub thread_id2: [u8; 32],
+    /// Encrypted key 1
+    pub encrypted_key1: [u8; 32],
+    /// Encrypted key 2
+    pub encrypted_key2: [u8; 32],
     /// User key
     pub user: Pubkey,
     /// Friend key
@@ -50,7 +54,7 @@ impl FriendInfo {
 
 impl Request {
     /// Data len
-    pub const LEN: usize = 64;
+    pub const LEN: usize = 128;
 
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {
