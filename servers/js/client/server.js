@@ -15,19 +15,21 @@ const {
 const { stringToBuffer } = require("./helper");
 
 const SERVER_PROGRAM_ID = new PublicKey(
-  "GfSqvy1yHF2wFf7R2e3HXAFDYsH1WdbS4jktkA1T7arP"
+  "FGdpP9RSN3ZE8d1PXxiBXS8ThCsXdi342KmDwqSQ3ZBz"
 );
 
 const DWELLER_SERVER_SEED = "DwellerServer";
 
 const SERVER_MEMBER_SEED = "ServerMember";
 
-function initializeDweller(dweller, name) {
+function initializeDweller(dweller, name, hash, status) {
   return new TransactionInstruction({
     keys: [{ pubkey: dweller.publicKey, isSigner: true, isWritable: true }],
     programId: SERVER_PROGRAM_ID,
     data: encodeInstructionData({
-      initializeDweller: { name: stringToBuffer(name, 32) },
+      initializeDweller: { name: stringToBuffer(name, 32),
+                           hash: stringToBuffer(hash, 64),
+                           status: stringToBuffer(status, 128) },
     }),
   });
 }
@@ -53,7 +55,7 @@ function initializeServer(
   });
 }
 
-async function createDweller(connection, payerAccount, name) {
+async function createDweller(connection, payerAccount, name, hash, status) {
   const space = dwellerAccountLayout.span;
   const lamports = await connection.getMinimumBalanceForRentExemption(space);
 
@@ -69,7 +71,7 @@ async function createDweller(connection, payerAccount, name) {
         programId: SERVER_PROGRAM_ID,
       })
     )
-    .add(initializeDweller(dweller, name));
+    .add(initializeDweller(dweller, name, hash, status));
 
   const result = await sendAndConfirmTransaction(
     connection,

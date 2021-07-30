@@ -13,7 +13,9 @@ const PAYER_ACCOUNT = new Account(pk);
   const dwellerAccount = await createDweller(
     connection,
     PAYER_ACCOUNT,
-    "test_name"
+    "test_name",
+    "BE62DF6F8308796B370685A5EDFE8EA25BC48524FF356639A5FB5E5504B3B2D9",
+    "Una descrizione molto lunga e appassionata che rispecchi la personalità dell'utente"
   );
 
   console.log(`Dweller created with pubkey ${dwellerAccount.publicKey}`);
