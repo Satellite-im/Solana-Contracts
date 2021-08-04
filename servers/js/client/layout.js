@@ -22,7 +22,9 @@ const LAYOUT = BufferLayout.union(BufferLayout.u8("instruction"));
 LAYOUT.addVariant(0, ADDRESS_TYPE_INPUT, "createDerivedAccount");
 LAYOUT.addVariant(
   1,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.u8(), 32, "name")]),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.u8(), 32, "name"),
+                       BufferLayout.seq(BufferLayout.u8(), 64, "hash"),
+                       BufferLayout.seq(BufferLayout.u8(), 128, "status")]),
   "initializeDweller"
 );
 LAYOUT.addVariant(
@@ -36,7 +38,7 @@ const dwellerAccountLayout = BufferLayout.struct([
   BufferLayout.nu64("servers"),
   BufferLayout.seq(BufferLayout.u8(), 32, "name"),
   BufferLayout.seq(BufferLayout.u8(), 64, "photo_hash"),
-  BufferLayout.seq(BufferLayout.u8(), 32, "status"),
+  BufferLayout.seq(BufferLayout.u8(), 128, "status"),
 ]);
 
 const serverAccountLayout = BufferLayout.struct([
