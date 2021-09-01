@@ -68,6 +68,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
+        let mirrored_friend_account = next_account_info(account_info_iter)?;
         let from_account = next_account_info(account_info_iter)?;
         let to_account = next_account_info(account_info_iter)?;
         let rent_account_info = next_account_info(account_info_iter)?;
@@ -86,6 +87,19 @@ impl Processor {
             return Err(ProgramError::InvalidSeeds);
         }
 
+        let (base, _) = Pubkey::find_program_address(
+            &[
+                &to_account.key.to_bytes()[..32],
+                &from_account.key.to_bytes()[..32],
+            ],
+            program_id,
+        );
+        let generated_mirrored_friend_key =
+            Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
+        if generated_mirrored_friend_key != *mirrored_friend_account.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+
         if !from_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -95,23 +109,21 @@ impl Processor {
         if friend.status != 0 && friend.status != 3 && friend.status != 4 {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
-        //TODO Da aggiungere controllo sul Friend speculare
-        // let (base, _) = Pubkey::find_program_address(
-        //     &[
-        //         &to_account.key.to_bytes()[..32],
-        //         &from_account.key.to_bytes()[..32],
-        //     ],
-        //     program_id,
-        // );
-        // let mirrored_friend =
-        //     Pubkey::create_with_seed(&base, Self::FRIEND_SEED, program_id)?;
-        // if mirrored_friend != *friend_account.key {
-        //     return Err(ProgramError::InvalidSeeds);
-        // }
+        let mirrored_friend =
+            Friend::try_from_slice(&mirrored_friend_account.data.borrow())?;
+        if mirrored_friend.status != 0 && mirrored_friend.status != 3 && mirrored_friend.status != 4 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
 
         if !rent.is_exempt(
             friend_account.lamports(),
             friend_account.data_len(),
+        ) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
+        if !rent.is_exempt(
+            mirrored_friend_account.lamports(),
+            mirrored_friend_account.data_len(),
         ) {
             return Err(ProgramError::AccountNotRentExempt);
         }
@@ -134,6 +146,18 @@ impl Processor {
                 return Err(FriendsProgramError::WrongRequestData.into());
             }
             friend.status = 1;
+        }
+
+        if mirrored_friend.is_initialized() {
+            if mirrored_friend.from != *to_account.key ||
+               mirrored_friend.to != *from_account.key || 
+               mirrored_friend.from_encrypted_key1 != t_t1 ||
+               mirrored_friend.from_encrypted_key2 != t_t2 ||
+               mirrored_friend.to_encrypted_key1 != t_f1 ||
+               mirrored_friend.to_encrypted_key2 != t_f2 {
+                return Err(FriendsProgramError::WrongRequestData.into());
+            }
+            Friend::default().serialize(&mut *mirrored_friend_account.data.borrow_mut())?;
         }
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())

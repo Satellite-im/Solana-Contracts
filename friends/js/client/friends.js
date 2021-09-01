@@ -75,6 +75,7 @@ async function createFriend(connection, payerAccount, userFromAccount, userToAcc
 
 async function initFriendRequest(
   friendKey,
+  friend2Key,
   userFromKey,
   userToKey,
   fromPaddedBuffer,
@@ -83,6 +84,7 @@ async function initFriendRequest(
   return new TransactionInstruction({
     keys: [
       { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: friend2Key, isSigner: false, isWritable: true },
       { pubkey: userFromKey, isSigner: true, isWritable: false },
       { pubkey: userToKey, isSigner: false, isWritable: true },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
@@ -182,6 +184,7 @@ async function createFriendRequest(
   connection,
   payerAccount,
   friendKey,
+  friend2Key,
   userFromAccount,
   userToKey,
   fromPaddedBuffer,
@@ -190,6 +193,7 @@ async function createFriendRequest(
   let transaction = new Transaction().add(
     await initFriendRequest(
       friendKey,
+      friend2Key,
       userFromAccount.publicKey,
       userToKey,
       fromPaddedBuffer,

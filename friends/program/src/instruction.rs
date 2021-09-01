@@ -95,6 +95,7 @@ pub fn create_account(
 pub fn make_request(
     program_id: &Pubkey,
     friend_account: &Pubkey,
+    mirrored_friend_account: &Pubkey,
     from_account: &Pubkey,
     to_account: &Pubkey,
     t_f1: [u8; 32],
@@ -108,6 +109,7 @@ pub fn make_request(
         .or(Err(ProgramError::InvalidArgument))?;
     let accounts = vec![
         AccountMeta::new(*friend_account, false),
+        AccountMeta::new(*mirrored_friend_account, false),
         AccountMeta::new_readonly(*from_account, true),
         AccountMeta::new_readonly(*to_account, false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),

@@ -48,8 +48,8 @@ LAYOUT.addVariant(5, ADDRESS_TYPE_INPUT, "createAccount");
 
 const friendLayout = BufferLayout.struct([
   BufferLayout.seq(BufferLayout.u8(), 32, "from"),
-  BufferLayout.seq(BufferLayout.u8(), 32, "to"),
   BufferLayout.u8("status"),
+  BufferLayout.seq(BufferLayout.u8(), 32, "to"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom1"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom2"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileTo1"),

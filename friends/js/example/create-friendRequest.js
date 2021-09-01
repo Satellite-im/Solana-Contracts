@@ -30,9 +30,10 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
   let userToAccount = new Account();
 
   let friend = await createFriend(connection, PAYER_ACCOUNT, userFromAccount, userToAccount);
-  // let friendTo = await createFriend(connection, PAYER_ACCOUNT, userToAccount);
+  let friend2 = await createFriend(connection, PAYER_ACCOUNT, userToAccount, userFromAccount);
 
   console.log(friend.toString());
+  console.log(friend2.toString());
   await waitForAccount(connection, friend);
 
   let friendData = await getFriend(
@@ -43,8 +44,8 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
   console.log("Friend data before creation:");
   console.log({
     from: new PublicKey(Buffer.from(friendData.from)).toBase58(),
-    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     status: friendData.status,
+    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
     text1: Buffer.from(friendData.textileTo1),
@@ -55,6 +56,7 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     connection,
     PAYER_ACCOUNT,
     friend,
+    friend2,
     userFromAccount,
     userToAccount.publicKey,
     paddedBuffer,
@@ -71,8 +73,8 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
   console.log("Friend data after creation:");
   console.log({
     from: new PublicKey(Buffer.from(friendData.from)).toBase58(),
-    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     status: friendData.status,
+    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
     text1: Buffer.from(friendData.textileTo1),
@@ -99,8 +101,8 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
   console.log("Friend data after accept:");
   console.log({
     from: new PublicKey(Buffer.from(friendData.from)).toBase58(),
-    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     status: friendData.status,
+    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
     text1: Buffer.from(friendData.textileTo1),
@@ -127,8 +129,8 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
   console.log("Friend data after remove:");
   console.log({
     from: new PublicKey(Buffer.from(friendData.from)).toBase58(),
-    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     status: friendData.status,
+    to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
     text1: Buffer.from(friendData.textileTo1),

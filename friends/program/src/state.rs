@@ -34,10 +34,10 @@ use solana_program::pubkey::Pubkey;
 pub struct Friend {
     /// User key
     pub from: Pubkey,
-    /// Friend key
-    pub to: Pubkey,
     /// Request status
     pub status: u8,
+    /// Friend key
+    pub to: Pubkey,
     /// Textile user encrypted key
     pub from_encrypted_key1: [u8; 32],
     /// Textile user encrypted key
