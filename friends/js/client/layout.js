@@ -16,31 +16,31 @@ const LAYOUT = BufferLayout.union(BufferLayout.u8("instruction"));
 
 LAYOUT.addVariant(
   0,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 2, "tex")]),
   "makeRequest"
 );
 
 LAYOUT.addVariant(
   1,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 2, "tex")]),
   "acceptRequest"
 );
 
 LAYOUT.addVariant(
   2,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
+  undefined,
   "denyRequest"
 );
 
 LAYOUT.addVariant(
   3,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
+  undefined,
   "removeRequest"
 );
 
 LAYOUT.addVariant(
   4,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
+  undefined,
   "removeFriend"
 );
 

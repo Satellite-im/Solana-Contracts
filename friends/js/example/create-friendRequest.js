@@ -59,7 +59,6 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     friend2,
     userFromAccount,
     userToAccount.publicKey,
-    paddedBuffer,
     paddedBuffer
   );
 
@@ -87,7 +86,6 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     friend,
     userFromAccount.publicKey,
     userToAccount,
-    paddedBuffer,
     paddedBuffer
   );
 
@@ -114,9 +112,7 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     PAYER_ACCOUNT,
     friend,
     userFromAccount,
-    userToAccount.publicKey,
-    paddedBuffer,
-    paddedBuffer
+    userToAccount.publicKey
   );
 
   await sleep(20000);
@@ -137,18 +133,4 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     text2: Buffer.from(friendData.textileTo2),
   });
 
-  // let acceptFriend = await acceptFriendRequest(
-  //   connection,
-  //   PAYER_ACCOUNT,
-  //   friendRequests.incoming,
-  //   friendRequests.outgoing,
-  //   friendRequests.incoming,
-  //   friendRequests.outgoing,
-  //   friendInfoFromAccount,
-  //   friendInfoToAccount,
-  //   friendTo,
-  //   friendFrom,
-  //   userFromAccount,
-  //   paddedBuffer
-  // );
 })();

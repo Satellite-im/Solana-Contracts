@@ -29,35 +29,35 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    MakeRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
+    MakeRequest([u8; 32], [u8; 32]),
 
     /// AcceptRequest
     ///
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    AcceptRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
+    AcceptRequest([u8; 32], [u8; 32]),
 
     /// DenyRequest
     ///
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    DenyRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
+    DenyRequest,
 
     /// RemoveRequest
     ///
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    RemoveRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
+    RemoveRequest,
 
     /// RemoveFriend
     ///
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    RemoveFriend([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
+    RemoveFriend,
 
     /// Create derived account
     CreateAccount(AddressType),
@@ -100,10 +100,8 @@ pub fn make_request(
     to_account: &Pubkey,
     t_f1: [u8; 32],
     t_f2: [u8; 32],
-    t_t1: [u8; 32],
-    t_t2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::MakeRequest(t_f1, t_f2, t_t1, t_t2);
+    let init_data = FriendsInstruction::MakeRequest(t_f1, t_f2);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -127,12 +125,10 @@ pub fn accept_request(
     friend_account: &Pubkey,
     from_account: &Pubkey,
     to_account: &Pubkey,
-    t_f1: [u8; 32],
-    t_f2: [u8; 32],
     t_t1: [u8; 32],
     t_t2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::AcceptRequest(t_f1, t_f2, t_t1, t_t2);
+    let init_data = FriendsInstruction::AcceptRequest(t_t1, t_t2);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -155,12 +151,8 @@ pub fn deny_request(
     friend_account: &Pubkey,
     from_account: &Pubkey,
     to_account: &Pubkey,
-    t_f1: [u8; 32],
-    t_f2: [u8; 32],
-    t_t1: [u8; 32],
-    t_t2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::DenyRequest(t_f1, t_f2, t_t1, t_t2);
+    let init_data = FriendsInstruction::DenyRequest;
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -183,12 +175,8 @@ pub fn remove_request(
     friend_account: &Pubkey,
     from_account: &Pubkey,
     to_account: &Pubkey,
-    t_f1: [u8; 32],
-    t_f2: [u8; 32],
-    t_t1: [u8; 32],
-    t_t2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::RemoveRequest(t_f1, t_f2, t_t1, t_t2);
+    let init_data = FriendsInstruction::RemoveRequest;
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -211,12 +199,8 @@ pub fn remove_friend(
     friend_account: &Pubkey,
     from_account: &Pubkey,
     to_account: &Pubkey,
-    t_f1: [u8; 32],
-    t_f2: [u8; 32],
-    t_t1: [u8; 32],
-    t_t2: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::RemoveFriend(t_f1, t_f2, t_t1, t_t2);
+    let init_data = FriendsInstruction::RemoveFriend;
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;

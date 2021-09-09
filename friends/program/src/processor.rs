@@ -63,8 +63,6 @@ impl Processor {
         accounts: &[AccountInfo],
         t_f1: [u8; 32],
         t_f2: [u8; 32],
-        t_t1: [u8; 32],
-        t_t2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -134,27 +132,19 @@ impl Processor {
             friend.status = 1;
             friend.from_encrypted_key1 = t_f1;
             friend.from_encrypted_key2 = t_f2;
-            friend.to_encrypted_key1 = t_t1;
-            friend.to_encrypted_key2 = t_t2;
         } else {
             if friend.from != *from_account.key ||
-               friend.to != *to_account.key || 
-               friend.from_encrypted_key1 != t_f1 ||
-               friend.from_encrypted_key2 != t_f2 ||
-               friend.to_encrypted_key1 != t_t1 ||
-               friend.to_encrypted_key2 != t_t2 {
+               friend.to != *to_account.key {
                 return Err(FriendsProgramError::WrongRequestData.into());
             }
             friend.status = 1;
+            friend.from_encrypted_key1 = t_f1;
+            friend.from_encrypted_key2 = t_f2;
         }
 
         if mirrored_friend.is_initialized() {
             if mirrored_friend.from != *to_account.key ||
-               mirrored_friend.to != *from_account.key || 
-               mirrored_friend.from_encrypted_key1 != t_t1 ||
-               mirrored_friend.from_encrypted_key2 != t_t2 ||
-               mirrored_friend.to_encrypted_key1 != t_f1 ||
-               mirrored_friend.to_encrypted_key2 != t_f2 {
+               mirrored_friend.to != *from_account.key {
                 return Err(FriendsProgramError::WrongRequestData.into());
             }
             Friend::default().serialize(&mut *mirrored_friend_account.data.borrow_mut())?;
@@ -167,8 +157,6 @@ impl Processor {
     pub fn process_accept_request_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t_f1: [u8; 32],
-        t_f2: [u8; 32],
         t_t1: [u8; 32],
         t_t2: [u8; 32],
     ) -> ProgramResult {
@@ -210,11 +198,7 @@ impl Processor {
         }
 
         if friend.from != *from_account.key ||
-           friend.to != *to_account.key || 
-           friend.from_encrypted_key1 != t_f1 ||
-           friend.from_encrypted_key2 != t_f2 ||
-           friend.to_encrypted_key1 != t_t1 ||
-           friend.to_encrypted_key2 != t_t2 {
+           friend.to != *to_account.key {
             return Err(FriendsProgramError::WrongRequestData.into());
         }
 
@@ -223,6 +207,8 @@ impl Processor {
         }
 
         friend.status = 2;
+        friend.to_encrypted_key1 = t_t1;
+        friend.to_encrypted_key2 = t_t2;
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -231,10 +217,6 @@ impl Processor {
     pub fn process_deny_request_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t_f1: [u8; 32],
-        t_f2: [u8; 32],
-        t_t1: [u8; 32],
-        t_t2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -274,11 +256,7 @@ impl Processor {
         }
 
         if friend.from != *from_account.key ||
-            friend.to != *to_account.key || 
-            friend.from_encrypted_key1 != t_f1 ||
-            friend.from_encrypted_key2 != t_f2 ||
-            friend.to_encrypted_key1 != t_t1 ||
-            friend.to_encrypted_key2 != t_t2 {
+            friend.to != *to_account.key {
             return Err(FriendsProgramError::WrongRequestData.into());
         }
 
@@ -287,6 +265,10 @@ impl Processor {
         }
 
         friend.status = 3;
+        friend.from_encrypted_key1 = Default::default();
+        friend.from_encrypted_key2 = Default::default();
+        friend.to_encrypted_key1 = Default::default();
+        friend.to_encrypted_key2 = Default::default();
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -295,10 +277,6 @@ impl Processor {
     pub fn process_remove_request_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t_f1: [u8; 32],
-        t_f2: [u8; 32],
-        t_t1: [u8; 32],
-        t_t2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -338,11 +316,7 @@ impl Processor {
         }
 
         if friend.from != *from_account.key ||
-            friend.to != *to_account.key || 
-            friend.from_encrypted_key1 != t_f1 ||
-            friend.from_encrypted_key2 != t_f2 ||
-            friend.to_encrypted_key1 != t_t1 ||
-            friend.to_encrypted_key2 != t_t2 {
+            friend.to != *to_account.key {
             return Err(FriendsProgramError::WrongRequestData.into());
         }
 
@@ -357,10 +331,6 @@ impl Processor {
     pub fn process_remove_friend_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        t_f1: [u8; 32],
-        t_f2: [u8; 32],
-        t_t1: [u8; 32],
-        t_t2: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -400,11 +370,7 @@ impl Processor {
         }
 
         if friend.from != *from_account.key ||
-            friend.to != *to_account.key || 
-            friend.from_encrypted_key1 != t_f1 ||
-            friend.from_encrypted_key2 != t_f2 ||
-            friend.to_encrypted_key1 != t_t1 ||
-            friend.to_encrypted_key2 != t_t2 {
+            friend.to != *to_account.key {
             return Err(FriendsProgramError::WrongRequestData.into());
         }
 
@@ -413,6 +379,10 @@ impl Processor {
         }
 
         friend.status = 4;
+        friend.from_encrypted_key1 = Default::default();
+        friend.from_encrypted_key2 = Default::default();
+        friend.to_encrypted_key1 = Default::default();
+        friend.to_encrypted_key2 = Default::default();
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -477,34 +447,34 @@ impl Processor {
     ) -> ProgramResult {
         let instruction = FriendsInstruction::try_from_slice(input)?;
         match instruction {
-            FriendsInstruction::MakeRequest(t_f1, t_f2, t_t1, t_t2) => {
+            FriendsInstruction::MakeRequest(t_f1, t_f2) => {
                 msg!("Instruction: MakeRequest");
                 Self::process_create_request_instruction(
-                    program_id, accounts, t_f1, t_f2, t_t1, t_t2,
+                    program_id, accounts, t_f1, t_f2,
                 )
             }
-            FriendsInstruction::AcceptRequest(t_f1, t_f2, t_t1, t_t2) => {
+            FriendsInstruction::AcceptRequest(t_t1, t_t2) => {
                 msg!("Instruction: AcceptRequest");
                 Self::process_accept_request_instruction(
-                    program_id, accounts, t_f1, t_f2, t_t1, t_t2,
+                    program_id, accounts, t_t1, t_t2,
                 )
             }
-            FriendsInstruction::DenyRequest(t_f1, t_f2, t_t1, t_t2) => {
+            FriendsInstruction::DenyRequest => {
                 msg!("Instruction: DenyRequest");
                 Self::process_deny_request_instruction(
-                    program_id, accounts, t_f1, t_f2, t_t1, t_t2,
+                    program_id, accounts,
                 )
             }
-            FriendsInstruction::RemoveRequest(t_f1, t_f2, t_t1, t_t2) => {
+            FriendsInstruction::RemoveRequest => {
                 msg!("Instruction: RemoveRequest");
                 Self::process_remove_request_instruction(
-                    program_id, accounts, t_f1, t_f2, t_t1, t_t2,
+                    program_id, accounts,
                 )
             }
-            FriendsInstruction::RemoveFriend(t_f1, t_f2, t_t1, t_t2) => {
+            FriendsInstruction::RemoveFriend => {
                 msg!("Instruction: RemoveFriend");
                 Self::process_remove_friend_instruction(
-                    program_id, accounts, t_f1, t_f2, t_t1, t_t2,
+                    program_id, accounts,
                 )
             }
             FriendsInstruction::CreateAccount(address_type) => {

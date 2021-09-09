@@ -79,7 +79,6 @@ async function initFriendRequest(
   userFromKey,
   userToKey,
   fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -91,7 +90,7 @@ async function initFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      makeRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64), toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      makeRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64)] },
     }),
   });
 }
@@ -100,7 +99,6 @@ async function initAcceptFriendRequest(
   friendKey,
   userFromKey,
   userToKey,
-  fromPaddedBuffer,
   toPaddedBuffer,
 ) {
   return new TransactionInstruction({
@@ -112,7 +110,7 @@ async function initAcceptFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      acceptRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64), toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      acceptRequest: { tex: [toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
     }),
   });
 }
@@ -121,8 +119,6 @@ async function initDenyFriendRequest(
   friendKey,
   userFromKey,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -133,7 +129,7 @@ async function initDenyFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      denyRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64), toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      denyRequest: {},
     }),
   });
 }
@@ -142,8 +138,6 @@ async function initRemoveFriendRequest(
   friendKey,
   userFromKey,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -154,7 +148,7 @@ async function initRemoveFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      removeRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64), toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      removeRequest: {},
     }),
   });
 }
@@ -163,8 +157,6 @@ async function initRemoveFriend(
   friendKey,
   userFromKey,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -175,7 +167,7 @@ async function initRemoveFriend(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      removeFriend: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64), toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      removeFriend: {},
     }),
   });
 }
@@ -187,8 +179,7 @@ async function createFriendRequest(
   friend2Key,
   userFromAccount,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
+  fromPaddedBuffer
 ) {
   let transaction = new Transaction().add(
     await initFriendRequest(
@@ -197,7 +188,6 @@ async function createFriendRequest(
       userFromAccount.publicKey,
       userToKey,
       fromPaddedBuffer,
-      toPaddedBuffer,
     )
   );
 
@@ -219,7 +209,6 @@ async function acceptFriendRequest(
   friendKey,
   userFromKey,
   userToAccount,
-  fromPaddedBuffer,
   toPaddedBuffer,
 ) {
   let transaction = new Transaction().add(
@@ -227,7 +216,6 @@ async function acceptFriendRequest(
       friendKey,
       userFromKey,
       userToAccount.publicKey,
-      fromPaddedBuffer,
       toPaddedBuffer,
     )
   );
@@ -250,16 +238,12 @@ async function denyFriendRequest(
   friendKey,
   userFromKey,
   userToAccount,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   let transaction = new Transaction().add(
     await initDenyFriendRequest(
       friendKey,
       userFromKey,
       userToAccount.publicKey,
-      fromPaddedBuffer,
-      toPaddedBuffer,
     )
   );
 
@@ -281,16 +265,12 @@ async function removeFriendRequest(
   friendKey,
   userFromAccount,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   let transaction = new Transaction().add(
     await initRemoveFriendRequest(
       friendKey,
       userFromAccount.publicKey,
       userToKey,
-      fromPaddedBuffer,
-      toPaddedBuffer,
     )
   );
 
@@ -312,16 +292,12 @@ async function removeFriend(
   friendKey,
   userFromAccount,
   userToKey,
-  fromPaddedBuffer,
-  toPaddedBuffer,
 ) {
   let transaction = new Transaction().add(
     await initRemoveFriend(
       friendKey,
       userFromAccount.publicKey,
       userToKey,
-      fromPaddedBuffer,
-      toPaddedBuffer,
     )
   );
 
