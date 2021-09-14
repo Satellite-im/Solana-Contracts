@@ -48,8 +48,12 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
+    texf3: Buffer.from(friendData.textileFrom3),
+    texf4: Buffer.from(friendData.textileFrom4),
     text1: Buffer.from(friendData.textileTo1),
     text2: Buffer.from(friendData.textileTo2),
+    text3: Buffer.from(friendData.textileTo3),
+    text4: Buffer.from(friendData.textileTo4),
   });
 
   let friendRequests = await createFriendRequest(
@@ -59,6 +63,7 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     friend2,
     userFromAccount,
     userToAccount.publicKey,
+    paddedBuffer,
     paddedBuffer
   );
 
@@ -76,8 +81,12 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
+    texf3: Buffer.from(friendData.textileFrom3),
+    texf4: Buffer.from(friendData.textileFrom4),
     text1: Buffer.from(friendData.textileTo1),
     text2: Buffer.from(friendData.textileTo2),
+    text3: Buffer.from(friendData.textileTo3),
+    text4: Buffer.from(friendData.textileTo4),
   });
 
   let acceptRequest = await acceptFriendRequest(
@@ -86,6 +95,7 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     friend,
     userFromAccount.publicKey,
     userToAccount,
+    paddedBuffer,
     paddedBuffer
   );
 
@@ -103,8 +113,12 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
+    texf3: Buffer.from(friendData.textileFrom3),
+    texf4: Buffer.from(friendData.textileFrom4),
     text1: Buffer.from(friendData.textileTo1),
     text2: Buffer.from(friendData.textileTo2),
+    text3: Buffer.from(friendData.textileTo3),
+    text4: Buffer.from(friendData.textileTo4),
   });
 
   let removeRequest = await removeFriend(
@@ -129,8 +143,12 @@ const paddedBuffer = Buffer.from(textileMailboxId.padStart(64, "0"));
     to: new PublicKey(Buffer.from(friendData.to)).toBase58(),
     texf1: Buffer.from(friendData.textileFrom1),
     texf2: Buffer.from(friendData.textileFrom2),
+    texf3: Buffer.from(friendData.textileFrom3),
+    texf4: Buffer.from(friendData.textileFrom4),
     text1: Buffer.from(friendData.textileTo1),
     text2: Buffer.from(friendData.textileTo2),
+    text3: Buffer.from(friendData.textileTo3),
+    text4: Buffer.from(friendData.textileTo4),
   });
 
 })();

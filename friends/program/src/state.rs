@@ -42,10 +42,18 @@ pub struct Friend {
     pub from_encrypted_key1: [u8; 32],
     /// Textile user encrypted key
     pub from_encrypted_key2: [u8; 32],
+    /// Textile user encrypted key
+    pub from_encrypted_key3: [u8; 32],
+    /// Textile user encrypted key
+    pub from_encrypted_key4: [u8; 32],
     /// Textile friend encrypted key
     pub to_encrypted_key1: [u8; 32],
     /// Textile friend encrypted key
     pub to_encrypted_key2: [u8; 32],
+    /// Textile friend encrypted key
+    pub to_encrypted_key3: [u8; 32],
+    /// Textile friend encrypted key
+    pub to_encrypted_key4: [u8; 32],
 }
 
 // impl FriendInfo {
@@ -70,7 +78,7 @@ pub struct Friend {
 
 impl Friend {
     /// Data len
-    pub const LEN: usize = 193;
+    pub const LEN: usize = 321;
 
     /// Check if struct is initialized
     pub fn is_initialized(&self) -> bool {

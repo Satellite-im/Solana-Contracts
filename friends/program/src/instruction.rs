@@ -29,14 +29,14 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    MakeRequest([u8; 32], [u8; 32]),
+    MakeRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
 
     /// AcceptRequest
     ///
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
-    AcceptRequest([u8; 32], [u8; 32]),
+    AcceptRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
 
     /// DenyRequest
     ///
@@ -100,8 +100,10 @@ pub fn make_request(
     to_account: &Pubkey,
     t_f1: [u8; 32],
     t_f2: [u8; 32],
+    t_f3: [u8; 32],
+    t_f4: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::MakeRequest(t_f1, t_f2);
+    let init_data = FriendsInstruction::MakeRequest(t_f1, t_f2, t_f3, t_f4);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
@@ -127,8 +129,10 @@ pub fn accept_request(
     to_account: &Pubkey,
     t_t1: [u8; 32],
     t_t2: [u8; 32],
+    t_t3: [u8; 32],
+    t_t4: [u8; 32],
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::AcceptRequest(t_t1, t_t2);
+    let init_data = FriendsInstruction::AcceptRequest(t_t1, t_t2, t_t3, t_t4);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;

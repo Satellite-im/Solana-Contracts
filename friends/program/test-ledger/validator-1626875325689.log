@@ -1,2 +1,0 @@
-warning: invalid logging spec 'solana_runtime::message_processor=debug.solana_bpf_loader=debug', ignoring it
-warning: invalid logging spec 'solana_runtime::message_processor=debug.solana_bpf_loader=debug', ignoring it

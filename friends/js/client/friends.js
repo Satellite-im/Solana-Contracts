@@ -78,7 +78,8 @@ async function initFriendRequest(
   friend2Key,
   userFromKey,
   userToKey,
-  fromPaddedBuffer,
+  fromPaddedBuffer1,
+  fromPaddedBuffer2,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -90,7 +91,7 @@ async function initFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      makeRequest: { tex: [fromPaddedBuffer.slice(0, 32), fromPaddedBuffer.slice(32, 64)] },
+      makeRequest: { tex: [fromPaddedBuffer1.slice(0, 32), fromPaddedBuffer1.slice(32, 64), fromPaddedBuffer2.slice(0, 32), fromPaddedBuffer2.slice(32, 64)] },
     }),
   });
 }
@@ -99,7 +100,8 @@ async function initAcceptFriendRequest(
   friendKey,
   userFromKey,
   userToKey,
-  toPaddedBuffer,
+  toPaddedBuffer1,
+  toPaddedBuffer2,
 ) {
   return new TransactionInstruction({
     keys: [
@@ -110,7 +112,7 @@ async function initAcceptFriendRequest(
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      acceptRequest: { tex: [toPaddedBuffer.slice(0, 32), toPaddedBuffer.slice(32, 64)] },
+      acceptRequest: { tex: [toPaddedBuffer1.slice(0, 32), toPaddedBuffer1.slice(32, 64), toPaddedBuffer2.slice(0, 32), toPaddedBuffer2.slice(32, 64)] },
     }),
   });
 }
@@ -179,7 +181,8 @@ async function createFriendRequest(
   friend2Key,
   userFromAccount,
   userToKey,
-  fromPaddedBuffer
+  fromPaddedBuffer1,
+  fromPaddedBuffer2
 ) {
   let transaction = new Transaction().add(
     await initFriendRequest(
@@ -187,7 +190,8 @@ async function createFriendRequest(
       friend2Key,
       userFromAccount.publicKey,
       userToKey,
-      fromPaddedBuffer,
+      fromPaddedBuffer1,
+      fromPaddedBuffer2,
     )
   );
 
@@ -209,14 +213,16 @@ async function acceptFriendRequest(
   friendKey,
   userFromKey,
   userToAccount,
-  toPaddedBuffer,
+  toPaddedBuffer1,
+  toPaddedBuffer2,
 ) {
   let transaction = new Transaction().add(
     await initAcceptFriendRequest(
       friendKey,
       userFromKey,
       userToAccount.publicKey,
-      toPaddedBuffer,
+      toPaddedBuffer1,
+      toPaddedBuffer2,
     )
   );
 

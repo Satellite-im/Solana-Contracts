@@ -16,13 +16,13 @@ const LAYOUT = BufferLayout.union(BufferLayout.u8("instruction"));
 
 LAYOUT.addVariant(
   0,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 2, "tex")]),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
   "makeRequest"
 );
 
 LAYOUT.addVariant(
   1,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 2, "tex")]),
+  BufferLayout.struct([BufferLayout.seq(BufferLayout.seq(BufferLayout.u8(), 32), 4, "tex")]),
   "acceptRequest"
 );
 
@@ -52,8 +52,12 @@ const friendLayout = BufferLayout.struct([
   BufferLayout.seq(BufferLayout.u8(), 32, "to"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom1"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom2"),
+  BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom3"),
+  BufferLayout.seq(BufferLayout.u8(), 32, "textileFrom4"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileTo1"),
   BufferLayout.seq(BufferLayout.u8(), 32, "textileTo2"),
+  BufferLayout.seq(BufferLayout.u8(), 32, "textileTo3"),
+  BufferLayout.seq(BufferLayout.u8(), 32, "textileTo4"),
 ]);
 
 const instructionMaxSpan = Math.max(

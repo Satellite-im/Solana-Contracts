@@ -63,6 +63,8 @@ impl Processor {
         accounts: &[AccountInfo],
         t_f1: [u8; 32],
         t_f2: [u8; 32],
+        t_f3: [u8; 32],
+        t_f4: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -132,6 +134,8 @@ impl Processor {
             friend.status = 1;
             friend.from_encrypted_key1 = t_f1;
             friend.from_encrypted_key2 = t_f2;
+            friend.from_encrypted_key3 = t_f3;
+            friend.from_encrypted_key4 = t_f4;
         } else {
             if friend.from != *from_account.key ||
                friend.to != *to_account.key {
@@ -140,6 +144,8 @@ impl Processor {
             friend.status = 1;
             friend.from_encrypted_key1 = t_f1;
             friend.from_encrypted_key2 = t_f2;
+            friend.from_encrypted_key3 = t_f3;
+            friend.from_encrypted_key4 = t_f4;
         }
 
         if mirrored_friend.is_initialized() {
@@ -159,6 +165,8 @@ impl Processor {
         accounts: &[AccountInfo],
         t_t1: [u8; 32],
         t_t2: [u8; 32],
+        t_t3: [u8; 32],
+        t_t4: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let friend_account = next_account_info(account_info_iter)?;
@@ -209,6 +217,8 @@ impl Processor {
         friend.status = 2;
         friend.to_encrypted_key1 = t_t1;
         friend.to_encrypted_key2 = t_t2;
+        friend.to_encrypted_key3 = t_t3;
+        friend.to_encrypted_key4 = t_t4;
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -267,8 +277,12 @@ impl Processor {
         friend.status = 3;
         friend.from_encrypted_key1 = Default::default();
         friend.from_encrypted_key2 = Default::default();
+        friend.from_encrypted_key3 = Default::default();
+        friend.from_encrypted_key4 = Default::default();
         friend.to_encrypted_key1 = Default::default();
         friend.to_encrypted_key2 = Default::default();
+        friend.to_encrypted_key3 = Default::default();
+        friend.to_encrypted_key4 = Default::default();
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -381,8 +395,12 @@ impl Processor {
         friend.status = 4;
         friend.from_encrypted_key1 = Default::default();
         friend.from_encrypted_key2 = Default::default();
+        friend.from_encrypted_key3 = Default::default();
+        friend.from_encrypted_key4 = Default::default();
         friend.to_encrypted_key1 = Default::default();
         friend.to_encrypted_key2 = Default::default();
+        friend.to_encrypted_key3 = Default::default();
+        friend.to_encrypted_key4 = Default::default();
 
         friend.serialize(&mut *friend_account.data.borrow_mut()).map_err(|e| e.into())
     }
@@ -447,16 +465,16 @@ impl Processor {
     ) -> ProgramResult {
         let instruction = FriendsInstruction::try_from_slice(input)?;
         match instruction {
-            FriendsInstruction::MakeRequest(t_f1, t_f2) => {
+            FriendsInstruction::MakeRequest(t_f1, t_f2, t_f3, t_f4) => {
                 msg!("Instruction: MakeRequest");
                 Self::process_create_request_instruction(
-                    program_id, accounts, t_f1, t_f2,
+                    program_id, accounts, t_f1, t_f2, t_f3, t_f4
                 )
             }
-            FriendsInstruction::AcceptRequest(t_t1, t_t2) => {
+            FriendsInstruction::AcceptRequest(t_t1, t_t2, t_t3, t_t4) => {
                 msg!("Instruction: AcceptRequest");
                 Self::process_accept_request_instruction(
-                    program_id, accounts, t_t1, t_t2,
+                    program_id, accounts, t_t1, t_t2, t_t3, t_t4
                 )
             }
             FriendsInstruction::DenyRequest => {
