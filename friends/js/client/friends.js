@@ -13,7 +13,7 @@ const {
 } = require("./../client/layout.js");
 
 const FRIENDS_PROGRAM_ID = new PublicKey(
-  "BxX6o2HG5DWrJt2v8GMSWNG2V2NtxNbAUF3wdE5Ao5gS"
+  "3oLLwXWbtfNRrsMvZCF63P5hSvmQU1biaKsvdqfcxEpM"
 );
 
 const FRIEND_SEED = "friend";
@@ -27,7 +27,7 @@ async function createDerivedAccount(
 ) {
   let base;
   base = await PublicKey.findProgramAddress(
-    [seedKey.toBytes(), params.createAccount.friend.friendKey],
+    [seedKey.toBytes(), params.createAccount],
     FRIENDS_PROGRAM_ID
   );
   let addressToCreate = await PublicKey.createWithSeed(
@@ -56,7 +56,7 @@ async function createDerivedAccount(
 }
 
 async function createFriend(connection, payerAccount, userFromAccount, userToAccount) {
-  let params= { createAccount: { friend: { friendKey: userToAccount.publicKey.toBytes() } } };
+  let params= { createAccount: userToAccount.publicKey.toBytes() };
   console.log(userFromAccount.publicKey.toString());
   console.log(userToAccount.publicKey.toString());
   console.log(userFromAccount.publicKey.toBytes());

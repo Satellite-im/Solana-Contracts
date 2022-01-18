@@ -2,7 +2,6 @@
 
 use crate::{
     error::FriendsProgramError,
-    instruction::AddressType,
     instruction::FriendsInstruction,
     state::{Friend},
 };
@@ -409,7 +408,7 @@ impl Processor {
     pub fn process_create_address_instruction(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        address_type: AddressType,
+        friend_key: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let payer_account_info = next_account_info(account_info_iter)?;
@@ -420,40 +419,36 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_account_info)?;
         let _system_program = next_account_info(account_info_iter)?;
 
-        match address_type {
-            AddressType::Friend(friend_key) => {
-                let (program_base_address, bump_seed) = Pubkey::find_program_address(
-                    &[
-                        &user_account_info.key.to_bytes()[..32],
-                        &friend_key.to_bytes()[..32],
-                    ],
-                    program_id,
-                );
-                if program_base_address != *base_account_info.key {
-                    return Err(ProgramError::InvalidSeeds);
-                }
-                let address_to_create =
-                    Pubkey::create_with_seed(&program_base_address, Self::FRIEND_SEED, program_id)?;
-                if address_to_create != *account_to_create_info.key {
-                    return Err(ProgramError::InvalidSeeds);
-                }
-                let signature = &[
-                    &user_account_info.key.to_bytes()[..32],
-                    &friend_key.to_bytes()[..32],
-                    &[bump_seed],
-                ];
-                Self::create_account(
-                    payer_account_info.clone(),
-                    account_to_create_info.clone(),
-                    base_account_info.clone(),
-                    Self::FRIEND_SEED,
-                    rent.minimum_balance(Friend::LEN),
-                    Friend::LEN as u64,
-                    program_id,
-                    signature,
-                )?;
-            }
+        let (program_base_address, bump_seed) = Pubkey::find_program_address(
+            &[
+                &user_account_info.key.to_bytes()[..32],
+                &friend_key.to_bytes()[..32],
+            ],
+            program_id,
+        );
+        if program_base_address != *base_account_info.key {
+            return Err(ProgramError::InvalidSeeds);
         }
+        let address_to_create =
+            Pubkey::create_with_seed(&program_base_address, Self::FRIEND_SEED, program_id)?;
+        if address_to_create != *account_to_create_info.key {
+            return Err(ProgramError::InvalidSeeds);
+        }
+        let signature = &[
+            &user_account_info.key.to_bytes()[..32],
+            &friend_key.to_bytes()[..32],
+            &[bump_seed],
+        ];
+        Self::create_account(
+            payer_account_info.clone(),
+            account_to_create_info.clone(),
+            base_account_info.clone(),
+            Self::FRIEND_SEED,
+            rent.minimum_balance(Friend::LEN),
+            Friend::LEN as u64,
+            program_id,
+            signature,
+        )?;
         Ok(())
     }
 
@@ -495,9 +490,9 @@ impl Processor {
                     program_id, accounts,
                 )
             }
-            FriendsInstruction::CreateAccount(address_type) => {
+            FriendsInstruction::CreateAccount(friend_key) => {
                 msg!("Instruction: CreateAccount");
-                Self::process_create_address_instruction(program_id, accounts, address_type)
+                Self::process_create_address_instruction(program_id, accounts, friend_key)
             }
         }
     }

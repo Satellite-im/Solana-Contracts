@@ -44,7 +44,11 @@ LAYOUT.addVariant(
   "removeFriend"
 );
 
-LAYOUT.addVariant(5, ADDRESS_TYPE_INPUT, "createAccount");
+LAYOUT.addVariant(
+  5,
+  BufferLayout.seq(BufferLayout.u8(), 32),
+  "createAccount"
+);
 
 const friendLayout = BufferLayout.struct([
   BufferLayout.seq(BufferLayout.u8(), 32, "from"),

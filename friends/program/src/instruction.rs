@@ -8,27 +8,16 @@ use solana_program::{
     system_program, sysvar,
 };
 
-/// Address type
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
-pub enum AddressType {
-    // /// FriendInfo
-    // FriendInfo,
-    // /// Outgoing request with index
-    // RequestOutgoing(u64),
-    // /// Incoming request with index
-    // RequestIncoming(u64),
-    /// Friend
-    Friend(Pubkey),
-}
-
 /// Instruction definition
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
 pub enum FriendsInstruction {
     /// MakeRequest
     ///
     ///   0. `[w]` Friend account
-    ///   1. `[w]` "from" account
-    ///   2. `[w]` "to" account
+    ///   1. `[w]` Friend account with switched "from" and "to"
+    ///   2. `[w]` "from" account
+    ///   3. `[w]` "to" account
+    ///   4. `[ ]` rent sysvar
     MakeRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
 
     /// AcceptRequest
@@ -36,6 +25,7 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
+    ///   3. `[ ]` rent sysvar
     AcceptRequest([u8; 32], [u8; 32], [u8; 32], [u8; 32]),
 
     /// DenyRequest
@@ -43,6 +33,7 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
+    ///   3. `[ ]` rent sysvar
     DenyRequest,
 
     /// RemoveRequest
@@ -50,6 +41,7 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
+    ///   3. `[ ]` rent sysvar
     RemoveRequest,
 
     /// RemoveFriend
@@ -57,10 +49,11 @@ pub enum FriendsInstruction {
     ///   0. `[w]` Friend account
     ///   1. `[w]` "from" account
     ///   2. `[w]` "to" account
+    ///   3. `[ ]` rent sysvar
     RemoveFriend,
 
     /// Create derived account
-    CreateAccount(AddressType),
+    CreateAccount(Pubkey),
 }
 
 /// Create `CreateAccount` instruction
@@ -70,9 +63,9 @@ pub fn create_account(
     user_address: &Pubkey,
     base_address: &Pubkey,
     account_to_create: &Pubkey,
-    address_type: AddressType,
+    friend_key: Pubkey,
 ) -> Result<Instruction, ProgramError> {
-    let init_data = FriendsInstruction::CreateAccount(address_type);
+    let init_data = FriendsInstruction::CreateAccount(friend_key);
     let data = init_data
         .try_to_vec()
         .or(Err(ProgramError::InvalidArgument))?;
