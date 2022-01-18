@@ -48,12 +48,12 @@ pub struct Dweller {
     pub photo_hash: [u8; 64],
 
     /// string
-    pub status: [u8; 32],
+    pub status: [u8; 128],
 }
 
 impl Dweller {
     /// data size
-    pub const LEN: u64 = 137;
+    pub const LEN: u64 = 233;
 }
 
 /// Mapping of `Dweller` to `Server`.

@@ -229,7 +229,7 @@ pub struct SetNameInput {
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone, BorshSchema)]
 pub struct SetDwellerStatusInput {
     /// status
-    pub status: [u8; 32],
+    pub status: [u8; 128],
 }
 
 /// instruction data
@@ -247,6 +247,10 @@ pub struct SetHashInput {
 pub struct InitializeDwellerInput {
     /// name
     pub name: [u8; 32],
+    /// IPFS hash
+    pub hash: [u8; 64],
+    /// status
+    pub status: [u8; 128],
 }
 
 /// instruction data

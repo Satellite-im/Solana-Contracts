@@ -569,7 +569,7 @@ pub async fn test_initialize_dweller(
             ),
             instruction::initialize_dweller(
                 &dweller_owner.pubkey(),
-                InitializeDwellerInput { name: [42; 32] },
+                InitializeDwellerInput { name: [42; 32], hash: [42; 64], status: [42; 128] },
             )
             .unwrap(),
         ],

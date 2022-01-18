@@ -30,6 +30,8 @@ impl Processor {
         if state.version == StateVersion::Uninitialized {
             state.version = StateVersion::V1;
             state.name = input.name;
+            state.photo_hash = input.hash;
+            state.status = input.status;
             state.serialize_const(&mut data)?;
             Ok(())
         } else {
