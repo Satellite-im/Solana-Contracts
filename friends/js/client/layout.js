@@ -1,18 +1,6 @@
 const BufferLayout = require("buffer-layout");
 
-/// Address type input
-const ADDRESS_TYPE_INPUT = BufferLayout.union(BufferLayout.u8("addressType"));
-// ADDRESS_TYPE_INPUT.addVariant(0, undefined, "friendInfo");
-// ADDRESS_TYPE_INPUT.addVariant(1, BufferLayout.nu64("index"), "requestOutgoing");
-// ADDRESS_TYPE_INPUT.addVariant(2, BufferLayout.nu64("index"), "requestIncoming");
-ADDRESS_TYPE_INPUT.addVariant(
-  0,
-  BufferLayout.struct([BufferLayout.seq(BufferLayout.u8(), 32, "friendKey")]),
-  "friend"
-);
-
 const LAYOUT = BufferLayout.union(BufferLayout.u8("instruction"));
-// LAYOUT.addVariant(0, undefined, "initFriendInfo");
 
 LAYOUT.addVariant(
   0,
