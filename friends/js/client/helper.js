@@ -24,4 +24,5 @@ async function waitForAccount(connection, accountKey) {
 module.exports = {
   stringToBuffer,
   waitForAccount,
+  sleep,
 };

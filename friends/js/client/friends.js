@@ -9,17 +9,14 @@ const {
 
 const {
   encodeInstructionData,
-  friendInfoAccountLayout,
-  requestAccountLayout,
+  friendLayout,
 } = require("./../client/layout.js");
 
 const FRIENDS_PROGRAM_ID = new PublicKey(
-  "92k8fHjwZV1tzFhokS1NoyLz65vhz3E3VdEcghXF4GRr"
+  "3oLLwXWbtfNRrsMvZCF63P5hSvmQU1biaKsvdqfcxEpM"
 );
 
-const FRIEND_INFO_SEED = "friendinfo";
-const OUTGOING_REQUEST = "outgoing";
-const INCOMING_REQUEST = "incoming";
+const FRIEND_SEED = "friend";
 
 async function createDerivedAccount(
   connection,
@@ -28,8 +25,9 @@ async function createDerivedAccount(
   seedString,
   params
 ) {
-  let base = await PublicKey.findProgramAddress(
-    [seedKey.toBytes()],
+  let base;
+  base = await PublicKey.findProgramAddress(
+    [seedKey.toBytes(), params.createAccount],
     FRIENDS_PROGRAM_ID
   );
   let addressToCreate = await PublicKey.createWithSeed(
@@ -49,9 +47,7 @@ async function createDerivedAccount(
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData(params),
   });
-
   let transaction = new Transaction().add(instruction);
-
   await sendAndConfirmTransaction(connection, transaction, [payerAccount], {
     commitment: "singleGossip",
     preflightCommitment: "singleGossip",
@@ -59,74 +55,121 @@ async function createDerivedAccount(
   return addressToCreate;
 }
 
-async function initFriendInfo(friendInfoPubKey, userKey) {
+async function createFriend(connection, payerAccount, userFromAccount, userToAccount) {
+  let params= { createAccount: userToAccount.publicKey.toBytes() };
+  console.log(userFromAccount.publicKey.toString());
+  console.log(userToAccount.publicKey.toString());
+  console.log(userFromAccount.publicKey.toBytes());
+  console.log(userToAccount.publicKey.toBytes());
+  console.log(params);
+  let friendKey = await createDerivedAccount(
+    connection,
+    payerAccount,
+    userFromAccount.publicKey,
+    FRIEND_SEED,
+    params
+  );
+
+  return friendKey;
+}
+
+async function initFriendRequest(
+  friendKey,
+  friend2Key,
+  userFromKey,
+  userToKey,
+  fromPaddedBuffer1,
+  fromPaddedBuffer2,
+) {
   return new TransactionInstruction({
     keys: [
-      { pubkey: friendInfoPubKey, isSigner: false, isWritable: true },
-      { pubkey: userKey, isSigner: true, isWritable: false },
+      { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: friend2Key, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: true, isWritable: false },
+      { pubkey: userToKey, isSigner: false, isWritable: true },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      initFriendInfo: {},
+      makeRequest: { tex: [fromPaddedBuffer1.slice(0, 32), fromPaddedBuffer1.slice(32, 64), fromPaddedBuffer2.slice(0, 32), fromPaddedBuffer2.slice(32, 64)] },
     }),
   });
 }
 
-async function createFriendInfo(connection, payerAccount, userAccount) {
-  let params = { createAccount: { friendInfo: {} } };
-  let friendInfoKey = await createDerivedAccount(
-    connection,
-    payerAccount,
-    userAccount.publicKey,
-    FRIEND_INFO_SEED,
-    params
-  );
-
-  let transaction = new Transaction().add(
-    await initFriendInfo(friendInfoKey, userAccount.publicKey)
-  );
-
-  await sendAndConfirmTransaction(
-    connection,
-    transaction,
-    [payerAccount, userAccount],
-    {
-      commitment: "singleGossip",
-      preflightCommitment: "singleGossip",
-    }
-  );
-  return friendInfoKey;
-}
-
-async function getFriendInfo(connection, friendInfoKey) {
-  const accountInfo = await connection.getAccountInfo(friendInfoKey);
-  if (accountInfo === null) {
-    throw "Error: cannot find the account";
-  }
-  const info = friendInfoAccountLayout.decode(Buffer.from(accountInfo.data));
-  return info;
-}
-
-async function initFriendRequest(
-  requestFromToKey,
-  requestToFromKey,
-  friendInfoFromKey,
-  friendInfoToKey,
-  userFromKey
+async function initAcceptFriendRequest(
+  friendKey,
+  userFromKey,
+  userToKey,
+  toPaddedBuffer1,
+  toPaddedBuffer2,
 ) {
   return new TransactionInstruction({
     keys: [
-      { pubkey: requestFromToKey, isSigner: false, isWritable: true },
-      { pubkey: requestToFromKey, isSigner: false, isWritable: true },
-      { pubkey: friendInfoFromKey, isSigner: false, isWritable: true },
-      { pubkey: friendInfoToKey, isSigner: false, isWritable: true },
-      { pubkey: userFromKey, isSigner: true, isWritable: false },
+      { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: false, isWritable: true },
+      { pubkey: userToKey, isSigner: true, isWritable: false },
       { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
     ],
     programId: FRIENDS_PROGRAM_ID,
     data: encodeInstructionData({
-      makeRequest: {},
+      acceptRequest: { tex: [toPaddedBuffer1.slice(0, 32), toPaddedBuffer1.slice(32, 64), toPaddedBuffer2.slice(0, 32), toPaddedBuffer2.slice(32, 64)] },
+    }),
+  });
+}
+
+async function initDenyFriendRequest(
+  friendKey,
+  userFromKey,
+  userToKey,
+) {
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: false, isWritable: true },
+      { pubkey: userToKey, isSigner: true, isWritable: false },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: FRIENDS_PROGRAM_ID,
+    data: encodeInstructionData({
+      denyRequest: {},
+    }),
+  });
+}
+
+async function initRemoveFriendRequest(
+  friendKey,
+  userFromKey,
+  userToKey,
+) {
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: true, isWritable: false },
+      { pubkey: userToKey, isSigner: false, isWritable: true },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: FRIENDS_PROGRAM_ID,
+    data: encodeInstructionData({
+      removeRequest: {},
+    }),
+  });
+}
+
+async function initRemoveFriend(
+  friendKey,
+  userFromKey,
+  userToKey,
+) {
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: friendKey, isSigner: false, isWritable: true },
+      { pubkey: userFromKey, isSigner: true, isWritable: false },
+      { pubkey: userToKey, isSigner: false, isWritable: true },
+      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+    ],
+    programId: FRIENDS_PROGRAM_ID,
+    data: encodeInstructionData({
+      removeFriend: {},
     }),
   });
 }
@@ -134,46 +177,21 @@ async function initFriendRequest(
 async function createFriendRequest(
   connection,
   payerAccount,
+  friendKey,
+  friend2Key,
   userFromAccount,
   userToKey,
-  friendInfoFromKey,
-  friendInfoToKey
+  fromPaddedBuffer1,
+  fromPaddedBuffer2
 ) {
-  let friendInfoFromData = await getFriendInfo(connection, friendInfoFromKey);
-  let params = {
-    createAccount: {
-      requestOutgoing: { index: friendInfoFromData.requests_outgoing },
-    },
-  };
-  let requestFromAccount = await createDerivedAccount(
-    connection,
-    payerAccount,
-    userFromAccount.publicKey,
-    friendInfoFromData.requests_outgoing + OUTGOING_REQUEST,
-    params
-  );
-
-  let friendInfoToData = await getFriendInfo(connection, friendInfoToKey);
-  params = {
-    createAccount: {
-      requestIncoming: { index: friendInfoToData.requests_incoming },
-    },
-  };
-  let requestToAccount = await createDerivedAccount(
-    connection,
-    payerAccount,
-    userToKey,
-    friendInfoToData.requests_incoming + INCOMING_REQUEST,
-    params
-  );
-
   let transaction = new Transaction().add(
     await initFriendRequest(
-      requestFromAccount,
-      requestToAccount,
-      friendInfoFromKey,
-      friendInfoToKey,
-      userFromAccount.publicKey
+      friendKey,
+      friend2Key,
+      userFromAccount.publicKey,
+      userToKey,
+      fromPaddedBuffer1,
+      fromPaddedBuffer2,
     )
   );
 
@@ -186,21 +204,136 @@ async function createFriendRequest(
       preflightCommitment: "singleGossip",
     }
   );
-  return { outgoing: requestFromAccount, incoming: requestToAccount };
+  return { result: true };
 }
 
-async function getFriendRequest(connection, friendRequestKey) {
-  const accountInfo = await connection.getAccountInfo(friendRequestKey);
+async function acceptFriendRequest(
+  connection,
+  payerAccount,
+  friendKey,
+  userFromKey,
+  userToAccount,
+  toPaddedBuffer1,
+  toPaddedBuffer2,
+) {
+  let transaction = new Transaction().add(
+    await initAcceptFriendRequest(
+      friendKey,
+      userFromKey,
+      userToAccount.publicKey,
+      toPaddedBuffer1,
+      toPaddedBuffer2,
+    )
+  );
+
+  await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [payerAccount, userToAccount],
+    {
+      commitment: "singleGossip",
+      preflightCommitment: "singleGossip",
+    }
+  );
+  return { result: true };
+}
+
+async function denyFriendRequest(
+  connection,
+  payerAccount,
+  friendKey,
+  userFromKey,
+  userToAccount,
+) {
+  let transaction = new Transaction().add(
+    await initDenyFriendRequest(
+      friendKey,
+      userFromKey,
+      userToAccount.publicKey,
+    )
+  );
+
+  await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [payerAccount, userToAccount],
+    {
+      commitment: "singleGossip",
+      preflightCommitment: "singleGossip",
+    }
+  );
+  return { result: true };
+}
+
+async function removeFriendRequest(
+  connection,
+  payerAccount,
+  friendKey,
+  userFromAccount,
+  userToKey,
+) {
+  let transaction = new Transaction().add(
+    await initRemoveFriendRequest(
+      friendKey,
+      userFromAccount.publicKey,
+      userToKey,
+    )
+  );
+
+  await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [payerAccount, userFromAccount],
+    {
+      commitment: "singleGossip",
+      preflightCommitment: "singleGossip",
+    }
+  );
+  return { result: true };
+}
+
+async function removeFriend(
+  connection,
+  payerAccount,
+  friendKey,
+  userFromAccount,
+  userToKey,
+) {
+  let transaction = new Transaction().add(
+    await initRemoveFriend(
+      friendKey,
+      userFromAccount.publicKey,
+      userToKey,
+    )
+  );
+
+  await sendAndConfirmTransaction(
+    connection,
+    transaction,
+    [payerAccount, userFromAccount],
+    {
+      commitment: "singleGossip",
+      preflightCommitment: "singleGossip",
+    }
+  );
+  return { result: true };
+}
+
+async function getFriend(connection, friendKey) {
+  const accountInfo = await connection.getAccountInfo(friendKey);
   if (accountInfo === null) {
     throw "Error: cannot find the account";
   }
-  const info = requestAccountLayout.decode(Buffer.from(accountInfo.data));
+  const info = friendLayout.decode(Buffer.from(accountInfo.data));
   return info;
 }
 
 module.exports = {
-  createFriendInfo,
-  getFriendInfo,
+  createFriend,
   createFriendRequest,
-  getFriendRequest,
+  acceptFriendRequest,
+  denyFriendRequest,
+  removeFriendRequest,
+  removeFriend,
+  getFriend,
 };
